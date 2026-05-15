@@ -1277,6 +1277,7 @@ finish:
 
 	if (check_ret) {
 		dev_err(dev, "CASN page check failed\n");
+		dev_err(dev, "Your SPI NAND might not support CASN, or the CASN page is corrupted.\n");
 		return check_ret;
 	}
 
