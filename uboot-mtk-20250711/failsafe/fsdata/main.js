@@ -8,118 +8,125 @@
  * You may not use, copy, modify or distribute this file except in compliance with the license agreement.
  */
 
-function normalizeLang(n) {
-    if (!n) return "en";
-    var t = String(n).toLowerCase();
-    return t.indexOf("zh") === 0 ? "zh-cn" : "en"
+function normalizeLang(input) {
+    if (!input) return "en";
+    var lowerCaseLanguage = String(input).toLowerCase();
+    return lowerCaseLanguage.indexOf("zh") === 0 ? "zh-cn" : "en";
 }
 
 function detectLang() {
-    var t, n;
+    var storedLang, navigatorLanguages;
     try {
-        if (t = localStorage.getItem("lang"), t) return normalizeLang(t)
-    } catch (i) { }
-    return n = [], navigator.languages && navigator.languages.length ? n = navigator.languages : navigator.language && (n = [navigator.language]), normalizeLang(n[0])
+        storedLang = localStorage.getItem("lang");
+        if (storedLang) return normalizeLang(storedLang);
+    } catch (error) { }
+    navigatorLanguages = [];
+    if (navigator.languages && navigator.languages.length) {
+        navigatorLanguages = navigator.languages;
+    } else if (navigator.language) {
+        navigatorLanguages = [navigator.language];
+    }
+    return normalizeLang(navigatorLanguages[0]);
 }
 
 function detectTheme() {
     try {
-        var n = localStorage.getItem("theme");
-        if (n) return n
-    } catch (t) { }
-    return "auto"
+        var storedTheme = localStorage.getItem("theme");
+        if (storedTheme) return storedTheme;
+    } catch (error) { }
+    return "auto";
 }
 
-function normalizeThemeMode(n) {
-    if (!n) return "auto";
-    var t = String(n).toLowerCase().trim();
-    return t === "light" || t === "dark" || t === "auto" ? t : "auto";
+function normalizeThemeMode(input) {
+    if (!input) return "auto";
+    var normalizedMode = String(input).toLowerCase().trim();
+    return normalizedMode === "light" || normalizedMode === "dark" || normalizedMode === "auto" ? normalizedMode : "auto";
 }
 
 function isI18nAvailable() {
-    return typeof I18N !== "undefined" && I18N
+    return typeof I18N !== "undefined" && I18N;
 }
 
 function isI18nEnabled() {
-    return APP_STATE.i18nEnabled !== false
+    return APP_STATE.i18nEnabled !== false;
 }
 
-function t(n, fallback) {
-    var r = APP_STATE.lang || "en";
+function t(key, fallback) {
+    var languageCode = APP_STATE.lang || "en";
     if (!isI18nEnabled() || !isI18nAvailable())
-        return fallback !== undefined ? fallback : n;
-    return I18N[r] && I18N[r][n] !== undefined ? I18N[r][n] : I18N.en && I18N.en[n] !== undefined ? I18N.en[n] : (fallback !== undefined ? fallback : n)
+        return fallback !== undefined ? fallback : key;
+    return I18N[languageCode] && I18N[languageCode][key] !== undefined ? I18N[languageCode][key] : I18N.en && I18N.en[key] !== undefined ? I18N.en[key] : (fallback !== undefined ? fallback : key);
 }
 
-function applyI18n(n) {
-    var s = n || document;
+function applyI18n(rootNode) {
+    var scope = rootNode || document;
     var enabled = isI18nEnabled() && isI18nAvailable();
-    var h = s.querySelectorAll("[data-i18n]");
-    for (var o = 0; o < h.length; o++) {
-        var el = h[o];
-        var key = el.getAttribute("data-i18n");
-        if (!el.hasAttribute("data-i18n-fallback"))
-            el.setAttribute("data-i18n-fallback", el.textContent || "");
-        var fallback = el.getAttribute("data-i18n-fallback") || "";
-        el.textContent = enabled ? t(key, fallback) : fallback;
+    var textNodes = scope.querySelectorAll("[data-i18n]");
+    for (var textIndex = 0; textIndex < textNodes.length; textIndex++) {
+        var textNode = textNodes[textIndex];
+        var key = textNode.getAttribute("data-i18n");
+        if (!textNode.hasAttribute("data-i18n-fallback"))
+            textNode.setAttribute("data-i18n-fallback", textNode.textContent || "");
+        var fallbackText = textNode.getAttribute("data-i18n-fallback") || "";
+        textNode.textContent = enabled ? t(key, fallbackText) : fallbackText;
     }
-    var u = s.querySelectorAll("[data-i18n-html]");
-    for (var i = 0; i < u.length; i++) {
-        var elh = u[i];
-        var keyh = elh.getAttribute("data-i18n-html");
-        if (!elh.hasAttribute("data-i18n-html-fallback"))
-            elh.setAttribute("data-i18n-html-fallback", elh.innerHTML || "");
-        var fallbackh = elh.getAttribute("data-i18n-html-fallback") || "";
-        elh.innerHTML = enabled ? t(keyh, fallbackh) : fallbackh;
+    var htmlNodes = scope.querySelectorAll("[data-i18n-html]");
+    for (var htmlIndex = 0; htmlIndex < htmlNodes.length; htmlIndex++) {
+        var htmlNode = htmlNodes[htmlIndex];
+        var htmlKey = htmlNode.getAttribute("data-i18n-html");
+        if (!htmlNode.hasAttribute("data-i18n-html-fallback"))
+            htmlNode.setAttribute("data-i18n-html-fallback", htmlNode.innerHTML || "");
+        var fallbackHtml = htmlNode.getAttribute("data-i18n-html-fallback") || "";
+        htmlNode.innerHTML = enabled ? t(htmlKey, fallbackHtml) : fallbackHtml;
     }
-    var f = s.querySelectorAll("[data-i18n-attr]");
-    for (var r = 0; r < f.length; r++) {
-        var el2 = f[r];
-        var a = el2.getAttribute("data-i18n-attr");
-        if (!a) continue;
-        var e = a.split(":");
-        if (e.length < 2) continue;
-        var v = e[0];
-        var y = e.slice(1).join(":");
-        var fbAttr = "data-i18n-attr-fallback-" + v;
-        if (!el2.hasAttribute(fbAttr))
-            el2.setAttribute(fbAttr, el2.getAttribute(v) || "");
-        var fallbackAttr = el2.getAttribute(fbAttr) || "";
-        el2.setAttribute(v, enabled ? t(y, fallbackAttr) : fallbackAttr)
+    var attributeNodes = scope.querySelectorAll("[data-i18n-attr]");
+    for (var attrIndex = 0; attrIndex < attributeNodes.length; attrIndex++) {
+        var attributeNode = attributeNodes[attrIndex];
+        var attributeSpec = attributeNode.getAttribute("data-i18n-attr");
+        if (!attributeSpec) continue;
+        var attributeParts = attributeSpec.split(":");
+        if (attributeParts.length < 2) continue;
+        var attributeName = attributeParts[0];
+        var translationKey = attributeParts.slice(1).join(":");
+        var fallbackKey = "data-i18n-attr-fallback-" + attributeName;
+        if (!attributeNode.hasAttribute(fallbackKey))
+            attributeNode.setAttribute(fallbackKey, attributeNode.getAttribute(attributeName) || "");
+        var fallbackAttribute = attributeNode.getAttribute(fallbackKey) || "";
+        attributeNode.setAttribute(attributeName, enabled ? t(translationKey, fallbackAttribute) : fallbackAttribute);
     }
 }
 
-function setLang(n) {
-    APP_STATE.lang = normalizeLang(n);
+function setLang(language) {
+    APP_STATE.lang = normalizeLang(language);
     try {
-        localStorage.setItem("lang", APP_STATE.lang)
-    } catch (t) { }
+        localStorage.setItem("lang", APP_STATE.lang);
+    } catch (error) { }
     applyI18n(document);
     typeof backupRefreshI18n == "function" && APP_STATE.page === "backup" && backupRefreshI18n();
     typeof renderSysInfo == "function" && renderSysInfo();
-    updateDocumentTitle()
+    updateDocumentTitle();
 }
 
 function updateThemeSelect() {
-    var sel = document.getElementById("theme_select");
-    if (!sel) return;
-    sel.value = APP_STATE.theme || "auto";
+    var themeSelect = document.getElementById("theme_select");
+    if (!themeSelect) return;
+    themeSelect.value = APP_STATE.theme || "auto";
 }
 
-function setTheme(n, opts) {
-    var o = opts || {};
-    var persistLocal = o.persistLocal !== false;
-    var persistEnv = o.persistEnv === true;
-    var silent = o.silent === true;
-    APP_STATE.theme = normalizeThemeMode(n || "auto");
+function setTheme(themeMode, options) {
+    var resolvedOptions = options || {};
+    var persistLocal = resolvedOptions.persistLocal !== false;
+    var persistEnv = resolvedOptions.persistEnv === true;
+    var silent = resolvedOptions.silent === true;
+    APP_STATE.theme = normalizeThemeMode(themeMode || "auto");
     try {
-        persistLocal && localStorage.setItem("theme", APP_STATE.theme)
-    } catch (i) { }
-    var t = document.documentElement;
+        persistLocal && localStorage.setItem("theme", APP_STATE.theme);
+    } catch (error) { }
+    var rootElement = document.documentElement;
     if (window.__failsafeThemeApplyMode) {
         window.__failsafeThemeApplyMode(APP_STATE.theme, { silent: silent });
     } else {
-        APP_STATE.theme === "auto" ? t.removeAttribute("data-theme") : t.setAttribute("data-theme", APP_STATE.theme);
+        APP_STATE.theme === "auto" ? rootElement.removeAttribute("data-theme") : rootElement.setAttribute("data-theme", APP_STATE.theme);
     }
     updateThemeSelect();
     persistEnv && saveThemeMode(APP_STATE.theme);
@@ -131,53 +138,53 @@ var ACCENT_PRESETS = ["#2563eb", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#a
 var THEME_MODE_ENV_KEY = "failsafe_theme_mode";
 
 function normalizeHexColor(input) {
-    var s, hex;
+    var value, hex;
     if (!input) return null;
-    s = String(input).trim();
-    if (s === "") return null;
-    if (s[0] === "#") s = s.slice(1);
-    if (!/^[0-9a-fA-F]{3}$/.test(s) && !/^[0-9a-fA-F]{6}$/.test(s)) return null;
-    if (s.length === 3) {
-        hex = "#" + s[0] + s[0] + s[1] + s[1] + s[2] + s[2];
+    value = String(input).trim();
+    if (value === "") return null;
+    if (value[0] === "#") value = value.slice(1);
+    if (!/^[0-9a-fA-F]{3}$/.test(value) && !/^[0-9a-fA-F]{6}$/.test(value)) return null;
+    if (value.length === 3) {
+        hex = "#" + value[0] + value[0] + value[1] + value[1] + value[2] + value[2];
     } else {
-        hex = "#" + s;
+        hex = "#" + value;
     }
     return hex.toLowerCase();
 }
 
 function hexToRgb(hex) {
-    var n = normalizeHexColor(hex);
-    if (!n) return null;
+    var normalizedHex = normalizeHexColor(hex);
+    if (!normalizedHex) return null;
     return {
-        r: parseInt(n.slice(1, 3), 16),
-        g: parseInt(n.slice(3, 5), 16),
-        b: parseInt(n.slice(5, 7), 16)
+        r: parseInt(normalizedHex.slice(1, 3), 16),
+        g: parseInt(normalizedHex.slice(3, 5), 16),
+        b: parseInt(normalizedHex.slice(5, 7), 16)
     };
 }
 
 function applyAccentVars(color) {
-    var norm = normalizeHexColor(color);
-    var rgb, root, lighter;
-    if (!norm) return false;
-    rgb = hexToRgb(norm);
+    var normalizedColor = normalizeHexColor(color);
+    var rgb, rootElement, lighter;
+    if (!normalizedColor) return false;
+    rgb = hexToRgb(normalizedColor);
     if (!rgb) return false;
-    root = document.documentElement;
-    root.style.setProperty("--primary", norm);
-    root.style.setProperty("--primary-rgb", rgb.r + ", " + rgb.g + ", " + rgb.b);
-    lighter = blendColor(norm, "#ffffff", 0.28);
-    root.style.setProperty("--primary-2", lighter);
-    ensureThemeColorMeta(norm);
+    rootElement = document.documentElement;
+    rootElement.style.setProperty("--primary", normalizedColor);
+    rootElement.style.setProperty("--primary-rgb", rgb.r + ", " + rgb.g + ", " + rgb.b);
+    lighter = blendColor(normalizedColor, "#ffffff", 0.28);
+    rootElement.style.setProperty("--primary-2", lighter);
+    ensureThemeColorMeta(normalizedColor);
     return true;
 }
 
-function blendColor(hex, targetHex, t) {
-    var a = hexToRgb(hex);
-    var b = hexToRgb(targetHex);
-    if (!a || !b) return hex;
-    var r = Math.round(a.r + (b.r - a.r) * t);
-    var g = Math.round(a.g + (b.g - a.g) * t);
-    var b2 = Math.round(a.b + (b.b - a.b) * t);
-    return "#" + r.toString(16).padStart(2, "0") + g.toString(16).padStart(2, "0") + b2.toString(16).padStart(2, "0");
+function blendColor(sourceHex, targetHex, ratio) {
+    var sourceRgb = hexToRgb(sourceHex);
+    var targetRgb = hexToRgb(targetHex);
+    if (!sourceRgb || !targetRgb) return sourceHex;
+    var red = Math.round(sourceRgb.r + (targetRgb.r - sourceRgb.r) * ratio);
+    var green = Math.round(sourceRgb.g + (targetRgb.g - sourceRgb.g) * ratio);
+    var blue = Math.round(sourceRgb.b + (targetRgb.b - sourceRgb.b) * ratio);
+    return "#" + red.toString(16).padStart(2, "0") + green.toString(16).padStart(2, "0") + blue.toString(16).padStart(2, "0");
 }
 
 function ensureThemeColorMeta(color) {
@@ -192,105 +199,104 @@ function ensureThemeColorMeta(color) {
 }
 
 function updateAccentControls(color) {
-    var picker = document.getElementById("accent_color_picker");
-    var input = document.getElementById("accent_color_input");
-    var norm = normalizeHexColor(color);
-    var swatches, i, sw;
-    if (picker && norm) picker.value = norm;
-    if (input && norm) input.value = norm;
+    var colorPicker = document.getElementById("accent_color_picker");
+    var colorInput = document.getElementById("accent_color_input");
+    var normalizedColor = normalizeHexColor(color);
+    var swatches, swatchIndex, swatch;
+    if (colorPicker && normalizedColor) colorPicker.value = normalizedColor;
+    if (colorInput && normalizedColor) colorInput.value = normalizedColor;
     swatches = document.querySelectorAll(".color-swatch");
-    for (i = 0; i < swatches.length; i++) {
-        sw = swatches[i];
-        if (!sw || !sw.dataset) continue;
-        if (norm && String(sw.dataset.color || "").toLowerCase() === norm)
-            sw.classList.add("active");
+    for (swatchIndex = 0; swatchIndex < swatches.length; swatchIndex++) {
+        swatch = swatches[swatchIndex];
+        if (!swatch || !swatch.dataset) continue;
+        if (normalizedColor && String(swatch.dataset.color || "").toLowerCase() === normalizedColor)
+            swatch.classList.add("active");
         else
-            sw.classList.remove("active");
+            swatch.classList.remove("active");
     }
 }
 
 function applyAccentColor(color) {
-    var ok = applyAccentVars(color);
-    if (!ok) return false;
+    var isApplied = applyAccentVars(color);
+    if (!isApplied) return false;
     updateAccentControls(color);
     return true;
 }
 
 (function applyAccentFromCache() {
     try {
-        var cached = localStorage.getItem(THEME_COLOR_CACHE_KEY);
-        if (cached) applyAccentVars(cached);
-    } catch (e) { }
+        var cachedColor = localStorage.getItem(THEME_COLOR_CACHE_KEY);
+        if (cachedColor) applyAccentVars(cachedColor);
+    } catch (error) { }
 })();
 
 async function saveThemeColor(color) {
-    var norm = normalizeHexColor(color);
-    if (!norm) return;
+    var normalizedColor = normalizeHexColor(color);
+    if (!normalizedColor) return;
     try {
-        localStorage.setItem(THEME_COLOR_CACHE_KEY, norm);
-    } catch (e) { }
+        localStorage.setItem(THEME_COLOR_CACHE_KEY, normalizedColor);
+    } catch (error) { }
     try {
-        var fd = new FormData();
-        fd.append("color", norm);
-        await fetch("/theme/set", { method: "POST", body: fd });
-    } catch (e) { }
+        var formData = new FormData();
+        formData.append("color", normalizedColor);
+        await fetch("/theme/set", { method: "POST", body: formData });
+    } catch (error) { }
 }
 
 async function saveThemeMode(theme) {
-    var norm = normalizeThemeMode(theme);
+    var normalizedMode = normalizeThemeMode(theme);
     try {
-        localStorage.setItem("theme", norm);
-    } catch (e) { }
+        localStorage.setItem("theme", normalizedMode);
+    } catch (error) { }
     try {
-        var fd = new FormData();
-        fd.append("theme", norm);
-        await fetch("/theme/set", { method: "POST", body: fd });
-    } catch (e) { }
+        var formData = new FormData();
+        formData.append("theme", normalizedMode);
+        await fetch("/theme/set", { method: "POST", body: formData });
+    } catch (error) { }
 }
 
 async function loadThemeColor() {
-    var current = null;
-    var fromEnv = false;
+    var currentColor = null;
+    var loadedFromEnv = false;
     try {
-        var r = await fetch("/theme/get", { method: "GET" });
-        if (r && r.ok) {
-            var j = await r.json();
-            if (j && j.color) {
-                current = normalizeHexColor(j.color);
-                fromEnv = !!current;
+        var response = await fetch("/theme/get", { method: "GET" });
+        if (response && response.ok) {
+            var payload = await response.json();
+            if (payload && payload.color) {
+                currentColor = normalizeHexColor(payload.color);
+                loadedFromEnv = !!currentColor;
             }
         }
-    } catch (e) { }
+    } catch (error) { }
 
-    if (!current) {
+    if (!currentColor) {
         try {
-            current = (getComputedStyle(document.documentElement)
-                .getPropertyValue("--primary") || "").trim();
-            current = normalizeHexColor(current);
-        } catch (e2) { }
+            currentColor = (getComputedStyle(document.documentElement).getPropertyValue("--primary") || "").trim();
+            currentColor = normalizeHexColor(currentColor);
+        } catch (error) { }
     }
 
-    if (current) {
-        if (fromEnv)
-            applyAccentColor(current);
-        if (fromEnv) {
+    if (currentColor) {
+        if (loadedFromEnv)
+            applyAccentColor(currentColor);
+        if (loadedFromEnv) {
             try {
-                localStorage.setItem(THEME_COLOR_CACHE_KEY, current);
-            } catch (e3) { }
+                localStorage.setItem(THEME_COLOR_CACHE_KEY, currentColor);
+            } catch (error) { }
         }
-        updateAccentControls(current);
+        updateAccentControls(currentColor);
     }
 }
 
 async function loadThemeMode() {
     var mode = null;
     try {
-        var r = await fetch("/theme/get", { method: "GET" });
-        if (r && r.ok) {
-            var j = await r.json();
-            if (j && j.theme) mode = normalizeThemeMode(j.theme);
+        var response = await fetch("/theme/get", { method: "GET" });
+        if (response && response.ok) {
+            var payload = await response.json();
+            if (payload && payload.theme) mode = normalizeThemeMode(payload.theme);
         }
-    } catch (e) { }
+    } catch (error) { }
 
     if (mode) {
         setTheme(mode, { persistEnv: false, persistLocal: true, silent: true });
@@ -303,56 +309,56 @@ function appendAccentControls(container) {
     var row = document.createElement("div");
     row.className = "control-row control-row-color";
 
-    var label = document.createElement("div");
-    label.setAttribute("data-i18n", "control.accent");
-    label.textContent = t("control.accent");
-    row.appendChild(label);
+    var accentLabel = document.createElement("div");
+    accentLabel.setAttribute("data-i18n", "control.accent");
+    accentLabel.textContent = t("control.accent");
+    row.appendChild(accentLabel);
 
     var picker = document.createElement("div");
     picker.className = "color-picker";
 
     var presets = document.createElement("div");
     presets.className = "color-presets";
-    ACCENT_PRESETS.forEach(function (c) {
-        var sw = document.createElement("button");
-        sw.type = "button";
-        sw.className = "color-swatch";
-        sw.dataset.color = c.toLowerCase();
-        sw.style.backgroundColor = c;
-        sw.onclick = function () {
-            applyAccentColor(c);
-            saveThemeColor(c);
+    ACCENT_PRESETS.forEach(function (presetColor) {
+        var swatchButton = document.createElement("button");
+        swatchButton.type = "button";
+        swatchButton.className = "color-swatch";
+        swatchButton.dataset.color = presetColor.toLowerCase();
+        swatchButton.style.backgroundColor = presetColor;
+        swatchButton.onclick = function () {
+            applyAccentColor(presetColor);
+            saveThemeColor(presetColor);
         };
-        presets.appendChild(sw);
+        presets.appendChild(swatchButton);
     });
 
     var inputs = document.createElement("div");
     inputs.className = "color-inputs";
 
-    var text = document.createElement("input");
-    text.type = "text";
-    text.id = "accent_color_input";
-    text.setAttribute("data-i18n-attr", "placeholder:theme.color.placeholder");
-    text.placeholder = t("theme.color.placeholder");
-    text.addEventListener("change", function () {
-        var norm = normalizeHexColor(text.value);
-        if (!norm) return;
-        applyAccentColor(norm);
-        saveThemeColor(norm);
+    var colorTextInput = document.createElement("input");
+    colorTextInput.type = "text";
+    colorTextInput.id = "accent_color_input";
+    colorTextInput.setAttribute("data-i18n-attr", "placeholder:theme.color.placeholder");
+    colorTextInput.placeholder = t("theme.color.placeholder");
+    colorTextInput.addEventListener("change", function () {
+        var normalizedColor = normalizeHexColor(colorTextInput.value);
+        if (!normalizedColor) return;
+        applyAccentColor(normalizedColor);
+        saveThemeColor(normalizedColor);
     });
 
-    var color = document.createElement("input");
-    color.type = "color";
-    color.id = "accent_color_picker";
-    color.setAttribute("data-i18n-attr", "title:theme.color.custom");
-    color.title = t("theme.color.custom");
-    color.addEventListener("input", function () {
-        applyAccentColor(color.value);
-        saveThemeColor(color.value);
+    var colorPicker = document.createElement("input");
+    colorPicker.type = "color";
+    colorPicker.id = "accent_color_picker";
+    colorPicker.setAttribute("data-i18n-attr", "title:theme.color.custom");
+    colorPicker.title = t("theme.color.custom");
+    colorPicker.addEventListener("input", function () {
+        applyAccentColor(colorPicker.value);
+        saveThemeColor(colorPicker.value);
     });
 
-    inputs.appendChild(text);
-    inputs.appendChild(color);
+    inputs.appendChild(colorTextInput);
+    inputs.appendChild(colorPicker);
 
     picker.appendChild(presets);
     picker.appendChild(inputs);
@@ -378,63 +384,75 @@ function updateDocumentTitle() {
     if (!isI18nEnabled() || !isI18nAvailable())
         return;
     if (APP_STATE.page) {
-        var n = APP_STATE.page + ".title";
-        if (I18N[APP_STATE.lang] && I18N[APP_STATE.lang][n]) {
-            document.title = t(n);
-            return
+        var titleKey = APP_STATE.page + ".title";
+        if (I18N[APP_STATE.lang] && I18N[APP_STATE.lang][titleKey]) {
+            document.title = t(titleKey);
+            return;
         }
-        APP_STATE.page === "flashing" ? document.title = t("flashing.title.in_progress") : APP_STATE.page === "booting" && (document.title = t("booting.title.in_progress"))
+        APP_STATE.page === "flashing" ? document.title = t("flashing.title.in_progress") : APP_STATE.page === "booting" && (document.title = t("booting.title.in_progress"));
     }
 }
 
 function ensureBranding() {
-    var t = document.getElementById("version"),
-        n, i;
-    t && ((n = t.nextElementSibling, n && n.classList && n.classList.contains("brand") && n.parentNode && n.parentNode.removeChild(n), t.querySelector && t.querySelector(".brand-inline")) || (i = document.createElement("span"), i.className = "brand-inline", i.textContent = "💡Yuzhii", t.appendChild(document.createTextNode(" ")), t.appendChild(i)))
-    if (!t) return;
-    if (t.querySelector && t.querySelector("#project-info")) return;
-    var m = document.createElement("div");
-    m.id = "project-info";
-    m.innerHTML = 'You can find more infomation about this project: <a href="https://github.com/Yuzhii0718/bl-mt798x-dhcpd" target="_blank">Github</a>';
-    t.appendChild(m);
+    var versionNode = document.getElementById("version"), nextSiblingNode, brandNode;
+    versionNode && ((nextSiblingNode = versionNode.nextElementSibling, nextSiblingNode && nextSiblingNode.classList && nextSiblingNode.classList.contains("brand") && nextSiblingNode.parentNode && nextSiblingNode.parentNode.removeChild(nextSiblingNode), versionNode.querySelector && versionNode.querySelector(".brand-inline")) || (brandNode = document.createElement("span"), brandNode.className = "brand-inline", brandNode.textContent = "💡Yuzhii", versionNode.appendChild(document.createTextNode(" ")), versionNode.appendChild(brandNode)));
+    if (!versionNode) return;
+    if (versionNode.querySelector && versionNode.querySelector("#project-info")) return;
+    var projectInfo = document.createElement("div");
+    projectInfo.id = "project-info";
+    projectInfo.innerHTML = 'You can find more infomation about this project: <a href="https://github.com/Yuzhii0718/bl-mt798x-dhcpd" target="_blank">Github</a>';
+    versionNode.appendChild(projectInfo);
 }
 
 function ensureSidebar() {
-    function o(n, i, r) {
-        var u = document.createElement("a"),
-            s, o, e, h;
-        return u.className = "nav-link", u.href = n, u.setAttribute("data-nav-id", r), s = document.createElement("span"), s.className = "dot", u.appendChild(s), o = document.createElement("span"), o.setAttribute("data-i18n", i), o.textContent = t(i), u.appendChild(o), e = n, e !== "/" && e.charAt(0) !== "/" && (e = "/" + e), h = e === f || e === "/" && (f === "/" || f === "/index.html"), h && u.classList.add("active"), u
+    function createNavLink(path, i18nKey, navId) {
+        var link = document.createElement("a"), iconSpan, labelSpan, normalizedPath, isActive;
+        link.className = "nav-link";
+        link.href = path;
+        link.setAttribute("data-nav-id", navId);
+        iconSpan = document.createElement("span");
+        iconSpan.className = "dot";
+        link.appendChild(iconSpan);
+        labelSpan = document.createElement("span");
+        labelSpan.setAttribute("data-i18n", i18nKey);
+        labelSpan.textContent = t(i18nKey);
+        link.appendChild(labelSpan);
+        normalizedPath = path;
+        normalizedPath !== "/" && normalizedPath.charAt(0) !== "/" && (normalizedPath = "/" + normalizedPath);
+        isActive = normalizedPath === currentPath || normalizedPath === "/" && (currentPath === "/" || currentPath === "/index.html");
+        isActive && link.classList.add("active");
+        return link;
     }
-    var i = document.getElementById("sidebar"),
-        f, k, s, h, c, d, r, l, g, n, a, v, y, p, e, w, u, b, gptLink, simgLink;
-    i && i.getAttribute("data-rendered") !== "1" && (i.setAttribute("data-rendered", "1"), f = location && location.pathname ? location.pathname : "", f === "" && (f = "/"), i.innerHTML = "", k = document.createElement("div"), k.className = "sidebar-brand", s = document.createElement("div"), s.className = "title", s.setAttribute("data-i18n", "app.name"), s.textContent = t("app.name"), k.appendChild(s), i.appendChild(k), h = document.createElement("div"), h.className = "sidebar-controls", c = document.createElement("div"), c.className = "control-row", d = document.createElement("div"), d.setAttribute("data-i18n", "control.language"), d.textContent = t("control.language"), c.appendChild(d), r = document.createElement("select"), r.id = "lang_select", r.innerHTML = '<option value="en">English<\/option><option value="zh-cn">简体中文<\/option>', r.value = APP_STATE.lang, r.onchange = function () {
-        setLang(this.value)
-    }, c.appendChild(r), h.appendChild(c), l = document.createElement("div"), l.className = "control-row", g = document.createElement("div"), g.setAttribute("data-i18n", "control.theme"), g.textContent = t("control.theme"), l.appendChild(g), n = document.createElement("select"), n.id = "theme_select", a = document.createElement("option"), a.value = "auto", a.setAttribute("data-i18n", "theme.auto"), a.textContent = t("theme.auto"), v = document.createElement("option"), v.value = "light", v.setAttribute("data-i18n", "theme.light"), v.textContent = t("theme.light"), y = document.createElement("option"), y.value = "dark", y.setAttribute("data-i18n", "theme.dark"), y.textContent = t("theme.dark"), n.appendChild(a), n.appendChild(v), n.appendChild(y), n.value = APP_STATE.theme, n.onchange = function () {
-        setTheme(this.value, { persistEnv: true, persistLocal: true })
-    }, l.appendChild(n), h.appendChild(l), appendAccentControls(h), i.appendChild(h), p = document.createElement("div"), p.className = "nav", e = document.createElement("div"), e.className = "nav-section", w = document.createElement("div"), w.className = "nav-section-title", w.setAttribute("data-i18n", "nav.basic"), w.textContent = t("nav.basic"), e.appendChild(w), e.appendChild(o("/", "nav.firmware", "firmware")), e.appendChild(o("/uboot.html", "nav.uboot", "uboot")), p.appendChild(e), u = document.createElement("div"), u.className = "nav-section", b = document.createElement("div"), b.className = "nav-section-title", b.setAttribute("data-i18n", "nav.advanced"), b.textContent = t("nav.advanced"), u.appendChild(b), u.appendChild(o("/bl2.html", "nav.bl2", "bl2")), gptLink = o("/gpt.html", "nav.gpt", "gpt"), gptLink.style.display = "none", u.appendChild(gptLink), simgLink = o("/simg.html", "nav.simg", "simg"), simgLink.style.display = "none", u.appendChild(simgLink), u.appendChild(o("/factory.html", "nav.factory", "factory")), u.appendChild(o("/initramfs.html", "nav.initramfs", "initramfs")), p.appendChild(u), u = document.createElement("div"), u.className = "nav-section", b = document.createElement("div"), b.className = "nav-section-title", b.setAttribute("data-i18n", "nav.system"), b.textContent = t("nav.system"), u.appendChild(b), u.appendChild(o("/backup.html", "nav.backup", "backup")), u.appendChild(o("/flash.html", "nav.flash", "flash")), u.appendChild(o("/env.html", "nav.env", "env")), u.appendChild(o("/console.html", "nav.console", "console")), r = o("/reboot.html", "nav.reboot", "reboot"), u.appendChild(r), p.appendChild(u), i.appendChild(p), applyI18n(i), updateGptNavVisibility(), updateSimgNavVisibility())
+
+    var sidebar = document.getElementById("sidebar"), currentPath, brandContainer, brandTitle, controlsContainer, languageRow, languageLabel, languageSelect, themeRow, themeLabel, themeSelect, autoOption, lightOption, darkOption, navContainer, basicSection, basicTitle, advancedSection, advancedTitle, systemSection, systemTitle, gptLink, simgLink;
+    sidebar && sidebar.getAttribute("data-rendered") !== "1" && (sidebar.setAttribute("data-rendered", "1"), currentPath = location && location.pathname ? location.pathname : "", currentPath === "" && (currentPath = "/"), sidebar.innerHTML = "", brandContainer = document.createElement("div"), brandContainer.className = "sidebar-brand", brandTitle = document.createElement("div"), brandTitle.className = "title", brandTitle.setAttribute("data-i18n", "app.name"), brandTitle.textContent = t("app.name"), brandContainer.appendChild(brandTitle), sidebar.appendChild(brandContainer), controlsContainer = document.createElement("div"), controlsContainer.className = "sidebar-controls", languageRow = document.createElement("div"), languageRow.className = "control-row", languageLabel = document.createElement("div"), languageLabel.setAttribute("data-i18n", "control.language"), languageLabel.textContent = t("control.language"), languageRow.appendChild(languageLabel), languageSelect = document.createElement("select"), languageSelect.id = "lang_select", languageSelect.innerHTML = '<option value="en">English<\/option><option value="zh-cn">简体中文<\/option>', languageSelect.value = APP_STATE.lang, languageSelect.onchange = function () {
+        setLang(this.value);
+    }, languageRow.appendChild(languageSelect), controlsContainer.appendChild(languageRow), themeRow = document.createElement("div"), themeRow.className = "control-row", themeLabel = document.createElement("div"), themeLabel.setAttribute("data-i18n", "control.theme"), themeLabel.textContent = t("control.theme"), themeRow.appendChild(themeLabel), themeSelect = document.createElement("select"), themeSelect.id = "theme_select", autoOption = document.createElement("option"), autoOption.value = "auto", autoOption.setAttribute("data-i18n", "theme.auto"), autoOption.textContent = t("theme.auto"), lightOption = document.createElement("option"), lightOption.value = "light", lightOption.setAttribute("data-i18n", "theme.light"), lightOption.textContent = t("theme.light"), darkOption = document.createElement("option"), darkOption.value = "dark", darkOption.setAttribute("data-i18n", "theme.dark"), darkOption.textContent = t("theme.dark"), themeSelect.appendChild(autoOption), themeSelect.appendChild(lightOption), themeSelect.appendChild(darkOption), themeSelect.value = APP_STATE.theme, themeSelect.onchange = function () {
+        setTheme(this.value, { persistEnv: true, persistLocal: true });
+    }, themeRow.appendChild(themeSelect), controlsContainer.appendChild(themeRow), appendAccentControls(controlsContainer), sidebar.appendChild(controlsContainer), navContainer = document.createElement("div"), navContainer.className = "nav", basicSection = document.createElement("div"), basicSection.className = "nav-section", basicTitle = document.createElement("div"), basicTitle.className = "nav-section-title", basicTitle.setAttribute("data-i18n", "nav.basic"), basicTitle.textContent = t("nav.basic"), basicSection.appendChild(basicTitle), basicSection.appendChild(createNavLink("/", "nav.firmware", "firmware")), basicSection.appendChild(createNavLink("/uboot.html", "nav.uboot", "uboot")), navContainer.appendChild(basicSection), advancedSection = document.createElement("div"), advancedSection.className = "nav-section", advancedTitle = document.createElement("div"), advancedTitle.className = "nav-section-title", advancedTitle.setAttribute("data-i18n", "nav.advanced"), advancedTitle.textContent = t("nav.advanced"), advancedSection.appendChild(advancedTitle), advancedSection.appendChild(createNavLink("/bl2.html", "nav.bl2", "bl2")), gptLink = createNavLink("/gpt.html", "nav.gpt", "gpt"), gptLink.style.display = "none", advancedSection.appendChild(gptLink), simgLink = createNavLink("/simg.html", "nav.simg", "simg"), simgLink.style.display = "none", advancedSection.appendChild(simgLink), advancedSection.appendChild(createNavLink("/factory.html", "nav.factory", "factory")), advancedSection.appendChild(createNavLink("/initramfs.html", "nav.initramfs", "initramfs")), navContainer.appendChild(advancedSection), systemSection = document.createElement("div"), systemSection.className = "nav-section", systemTitle = document.createElement("div"), systemTitle.className = "nav-section-title", systemTitle.setAttribute("data-i18n", "nav.system"), systemTitle.textContent = t("nav.system"), systemSection.appendChild(systemTitle), systemSection.appendChild(createNavLink("/backup.html", "nav.backup", "backup")), systemSection.appendChild(createNavLink("/flash.html", "nav.flash", "flash")), systemSection.appendChild(createNavLink("/env.html", "nav.env", "env")), systemSection.appendChild(createNavLink("/console.html", "nav.console", "console")), systemSection.appendChild(createNavLink("/reboot.html", "nav.reboot", "reboot")), navContainer.appendChild(systemSection), sidebar.appendChild(navContainer), applyI18n(sidebar), updateGptNavVisibility(), updateSimgNavVisibility());
 }
 
-function ajax(n) {
-    var t, i;
-    t = window.XMLHttpRequest ? new XMLHttpRequest : new ActiveXObject("Microsoft.XMLHTTP");
-    t.upload.addEventListener("progress", function (t) {
-        n.progress && n.progress(t)
+function ajax(request) {
+    var xhr, method;
+    xhr = window.XMLHttpRequest ? new XMLHttpRequest : new ActiveXObject("Microsoft.XMLHTTP");
+    xhr.upload.addEventListener("progress", function (event) {
+        request.progress && request.progress(event);
     });
-    t.onreadystatechange = function () {
-        t.readyState == 4 && t.status == 200 && n.done && n.done(t.responseText)
+    xhr.onreadystatechange = function () {
+        xhr.readyState == 4 && xhr.status == 200 && request.done && request.done(xhr.responseText);
     };
-    n.timeout && (t.timeout = n.timeout);
-    i = "GET";
-    n.data && (i = "POST");
-    t.open(i, n.url);
-    t.send(n.data)
+    request.timeout && (xhr.timeout = request.timeout);
+    method = "GET";
+    request.data && (method = "POST");
+    xhr.open(method, request.url);
+    xhr.send(request.data);
 }
 
 function consoleInit() {
-    var out = document.getElementById("console_out");
-    var cmd = document.getElementById("console_cmd");
-    var status = document.getElementById("console_status");
-    var token = document.getElementById("console_token");
+    var outputElement = document.getElementById("console_out");
+    var commandInput = document.getElementById("console_cmd");
+    var statusElement = document.getElementById("console_status");
+    var tokenInput = document.getElementById("console_token");
     var persistKey = "failsafe_console_output";
     var persistMax = 200000;
 
@@ -448,70 +466,70 @@ function consoleInit() {
 
     function loadToken() {
         try {
-            var t = localStorage.getItem(APP_STATE.console.tokenKey);
-            token && t && (token.value = t);
-        } catch (e) { }
+            var storedToken = localStorage.getItem(APP_STATE.console.tokenKey);
+            tokenInput && storedToken && (tokenInput.value = storedToken);
+        } catch (error) { }
     }
 
     function saveToken() {
         try {
-            token && localStorage.setItem(APP_STATE.console.tokenKey, token.value || "");
-        } catch (e) { }
+            tokenInput && localStorage.setItem(APP_STATE.console.tokenKey, tokenInput.value || "");
+        } catch (error) { }
     }
 
-    function setStatus(t) {
-        status && (status.textContent = t || "");
+    function setStatus(message) {
+        statusElement && (statusElement.textContent = message || "");
     }
 
     function loadPersistedOutput() {
-        if (!out) return;
+        if (!outputElement) return;
         try {
-            var s = sessionStorage.getItem(persistKey);
-            if (s) out.textContent = s;
-        } catch (e) { }
+            var savedOutput = sessionStorage.getItem(persistKey);
+            if (savedOutput) outputElement.textContent = savedOutput;
+        } catch (error) { }
     }
 
     function savePersistedOutput() {
-        if (!out) return;
+        if (!outputElement) return;
         try {
-            var s = out.textContent || "";
-            if (s.length > persistMax)
-                s = s.slice(s.length - persistMax);
-            sessionStorage.setItem(persistKey, s);
-        } catch (e) { }
+            var currentOutput = outputElement.textContent || "";
+            if (currentOutput.length > persistMax)
+                currentOutput = currentOutput.slice(currentOutput.length - persistMax);
+            sessionStorage.setItem(persistKey, currentOutput);
+        } catch (error) { }
     }
 
-    function appendText(t) {
-        if (!out) return;
-        if (!t) return;
-        out.textContent += t;
-        if (out.textContent.length > persistMax)
-            out.textContent = out.textContent.slice(out.textContent.length - persistMax);
+    function appendText(text) {
+        if (!outputElement) return;
+        if (!text) return;
+        outputElement.textContent += text;
+        if (outputElement.textContent.length > persistMax)
+            outputElement.textContent = outputElement.textContent.slice(outputElement.textContent.length - persistMax);
         savePersistedOutput();
-        out.scrollTop = out.scrollHeight;
+        outputElement.scrollTop = outputElement.scrollHeight;
     }
 
     async function pollOnce() {
         if (!APP_STATE.console.running) return;
         try {
-            var fd = new FormData();
-            if (token && token.value) fd.append("token", token.value);
-            var r = await fetch("/console/poll", { method: "POST", body: fd });
-            if (!r.ok) {
-                setStatus(t("console.status.http") + " " + r.status);
+            var formData = new FormData();
+            if (tokenInput && tokenInput.value) formData.append("token", tokenInput.value);
+            var response = await fetch("/console/poll", { method: "POST", body: formData });
+            if (!response.ok) {
+                setStatus(t("console.status.http") + " " + response.status);
                 return;
             }
-            var txt = await r.text();
-            var j;
+            var responseText = await response.text();
+            var payload;
             try {
-                j = JSON.parse(txt);
-            } catch (e) {
+                payload = JSON.parse(responseText);
+            } catch (error) {
                 setStatus(t("console.status.parse"));
                 return;
             }
-            j && j.data && appendText(j.data);
-        } catch (e) {
-            setStatus(t("console.status.error") + " " + (e && e.message ? e.message : String(e)));
+            payload && payload.data && appendText(payload.data);
+        } catch (error) {
+            setStatus(t("console.status.error") + " " + (error && error.message ? error.message : String(error)));
         }
     }
 
@@ -524,75 +542,75 @@ function consoleInit() {
     }
 
     window.consoleSend = async function () {
-        if (!cmd || !cmd.value) return;
+        if (!commandInput || !commandInput.value) return;
         saveToken();
-        var line = String(cmd.value);
-        cmd.value = "";
-        APP_STATE.console.history.unshift(line);
+        var commandLine = String(commandInput.value);
+        commandInput.value = "";
+        APP_STATE.console.history.unshift(commandLine);
         APP_STATE.console.history.length > 50 && (APP_STATE.console.history.length = 50);
         APP_STATE.console.histPos = -1;
 
         try {
-            var fd = new FormData();
-            fd.append("cmd", line);
-            if (token && token.value) fd.append("token", token.value);
+            var formData = new FormData();
+            formData.append("cmd", commandLine);
+            if (tokenInput && tokenInput.value) formData.append("token", tokenInput.value);
             setStatus(t("console.status.running"));
-            var r = await fetch("/console/exec", { method: "POST", body: fd });
-            var txt = await r.text();
-            if (!r.ok) {
-                setStatus(t("console.status.http") + " " + r.status + (txt ? ": " + txt : ""));
+            var response = await fetch("/console/exec", { method: "POST", body: formData });
+            var responseText = await response.text();
+            if (!response.ok) {
+                setStatus(t("console.status.http") + " " + response.status + (responseText ? ": " + responseText : ""));
                 return;
             }
             try {
-                var j = JSON.parse(txt);
-                setStatus(t("console.status.ret") + " " + (j && typeof j.ret !== "undefined" ? j.ret : "?"));
-            } catch (e) {
+                var payload = JSON.parse(responseText);
+                setStatus(t("console.status.ret") + " " + (payload && typeof payload.ret !== "undefined" ? payload.ret : "?"));
+            } catch (error) {
                 setStatus(t("console.status.done"));
             }
-        } catch (e) {
-            setStatus(t("console.status.error") + " " + (e && e.message ? e.message : String(e)));
+        } catch (error) {
+            setStatus(t("console.status.error") + " " + (error && error.message ? error.message : String(error)));
         }
     };
 
     window.consoleClear = async function () {
         saveToken();
         try {
-            var fd = new FormData();
-            if (token && token.value) fd.append("token", token.value);
-            var r = await fetch("/console/clear", { method: "POST", body: fd });
-            if (r.ok) {
-                out && (out.textContent = "");
-                try { sessionStorage.removeItem(persistKey); } catch (e) { }
+            var formData = new FormData();
+            if (tokenInput && tokenInput.value) formData.append("token", tokenInput.value);
+            var response = await fetch("/console/clear", { method: "POST", body: formData });
+            if (response.ok) {
+                outputElement && (outputElement.textContent = "");
+                try { sessionStorage.removeItem(persistKey); } catch (error) { }
                 setStatus(t("console.status.cleared"));
             } else {
-                setStatus(t("console.status.http") + " " + r.status);
+                setStatus(t("console.status.http") + " " + response.status);
             }
-        } catch (e) {
-            setStatus(t("console.status.error") + " " + (e && e.message ? e.message : String(e)));
+        } catch (error) {
+            setStatus(t("console.status.error") + " " + (error && error.message ? error.message : String(error)));
         }
     };
 
-    if (cmd) {
-        cmd.addEventListener("keydown", function (e) {
-            if (e.key === "Enter") {
-                e.preventDefault();
+    if (commandInput) {
+        commandInput.addEventListener("keydown", function (event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
                 window.consoleSend();
                 return;
             }
-            if (e.key === "ArrowUp") {
-                var h = APP_STATE.console.history;
-                if (!h || !h.length) return;
-                APP_STATE.console.histPos = Math.min(h.length - 1, APP_STATE.console.histPos + 1);
-                cmd.value = h[APP_STATE.console.histPos] || "";
-                e.preventDefault();
+            if (event.key === "ArrowUp") {
+                var historyEntries = APP_STATE.console.history;
+                if (!historyEntries || !historyEntries.length) return;
+                APP_STATE.console.histPos = Math.min(historyEntries.length - 1, APP_STATE.console.histPos + 1);
+                commandInput.value = historyEntries[APP_STATE.console.histPos] || "";
+                event.preventDefault();
                 return;
             }
-            if (e.key === "ArrowDown") {
-                var h2 = APP_STATE.console.history;
-                if (!h2 || !h2.length) return;
+            if (event.key === "ArrowDown") {
+                var historyEntriesDown = APP_STATE.console.history;
+                if (!historyEntriesDown || !historyEntriesDown.length) return;
                 APP_STATE.console.histPos = Math.max(-1, APP_STATE.console.histPos - 1);
-                cmd.value = APP_STATE.console.histPos >= 0 ? (h2[APP_STATE.console.histPos] || "") : "";
-                e.preventDefault();
+                commandInput.value = APP_STATE.console.histPos >= 0 ? (historyEntriesDown[APP_STATE.console.histPos] || "") : "";
+                event.preventDefault();
             }
         });
     }
@@ -605,89 +623,89 @@ function consoleInit() {
 }
 
 function envInit() {
-    var list = document.getElementById("env_list");
-    var name = document.getElementById("env_name");
-    var value = document.getElementById("env_value");
-    var status = document.getElementById("env_status");
-    var count = document.getElementById("env_count");
-    var file = document.getElementById("env_file");
+    var listElement = document.getElementById("env_list");
+    var nameInput = document.getElementById("env_name");
+    var valueInput = document.getElementById("env_value");
+    var statusElement = document.getElementById("env_status");
+    var countElement = document.getElementById("env_count");
+    var fileInput = document.getElementById("env_file");
 
-    function setStatus(t) {
-        status && (status.textContent = t || "");
+    function setStatus(message) {
+        statusElement && (statusElement.textContent = message || "");
     }
 
-    function countLines(txt) {
-        if (!txt) return 0;
-        var lines = txt.split("\n");
-        var c = 0;
-        for (var i = 0; i < lines.length; i++) {
-            if (lines[i] && lines[i].indexOf("=") > 0)
-                c++;
+    function countLines(text) {
+        if (!text) return 0;
+        var lines = text.split("\n");
+        var lineCount = 0;
+        for (var lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+            if (lines[lineIndex] && lines[lineIndex].indexOf("=") > 0)
+                lineCount++;
         }
-        return c;
+        return lineCount;
     }
 
     window.envRefresh = async function () {
         try {
             setStatus(t("env.status.loading"));
-            var r = await fetch("/env/list", { method: "GET" });
-            if (!r.ok) {
-                setStatus(t("env.status.http") + " " + r.status);
+            var response = await fetch("/env/list", { method: "GET" });
+            if (!response.ok) {
+                setStatus(t("env.status.http") + " " + response.status);
                 return;
             }
-            var txt = await r.text();
-            list && (list.textContent = txt || "");
-            count && (count.textContent = t("env.count") + " " + countLines(txt));
+            var responseText = await response.text();
+            listElement && (listElement.textContent = responseText || "");
+            countElement && (countElement.textContent = t("env.count") + " " + countLines(responseText));
             setStatus(t("env.status.ready"));
-        } catch (e) {
-            setStatus(t("env.status.error") + " " + (e && e.message ? e.message : String(e)));
+        } catch (error) {
+            setStatus(t("env.status.error") + " " + (error && error.message ? error.message : String(error)));
         }
     };
 
     window.envSet = async function () {
-        if (!name || !name.value) {
+        if (!nameInput || !nameInput.value) {
             alert(t("env.error.no_name"));
             return;
         }
         try {
-            var fd = new FormData();
-            fd.append("name", name.value);
-            fd.append("value", value ? value.value : "");
+            var formData = new FormData();
+            formData.append("name", nameInput.value);
+            formData.append("value", valueInput ? valueInput.value : "");
             setStatus(t("env.status.saving"));
-            var r = await fetch("/env/set", { method: "POST", body: fd });
-            var txt = await r.text();
-            if (!r.ok) {
-                setStatus(t("env.status.error") + " " + (txt || r.status));
+            var response = await fetch("/env/set", { method: "POST", body: formData });
+            var responseText = await response.text();
+            if (!response.ok) {
+                setStatus(t("env.status.error") + " " + (responseText || response.status));
                 return;
             }
             setStatus(t("env.status.saved"));
             window.envRefresh();
-        } catch (e) {
-            setStatus(t("env.status.error") + " " + (e && e.message ? e.message : String(e)));
+        } catch (error) {
+            setStatus(t("env.status.error") + " " + (error && error.message ? error.message : String(error)));
         }
     };
 
     window.envUnset = async function () {
-        if (!name || !name.value) {
+        if (!nameInput || !nameInput.value) {
             alert(t("env.error.no_name"));
             return;
         }
-        if (!confirm(t("env.confirm.delete") + " " + name.value + " ?"))
+        if (!confirm(t("env.confirm.delete") + " " + nameInput.value + " ?"))
             return;
         try {
-            var fd = new FormData();
-            fd.append("name", name.value);
+            var formData = new FormData();
+            formData.append("name", nameInput.value);
             setStatus(t("env.status.saving"));
-            var r = await fetch("/env/unset", { method: "POST", body: fd });
-            var txt = await r.text();
-            if (!r.ok) {
-                setStatus(t("env.status.error") + " " + (txt || r.status));
+            var response = await fetch("/env/unset", { method: "POST", body: formData });
+            var responseText = await response.text();
+            if (!response.ok) {
+                setStatus(t("env.status.error") + " " + (responseText || response.status));
                 return;
             }
             setStatus(t("env.status.deleted"));
             window.envRefresh();
-        } catch (e) {
-            setStatus(t("env.status.error") + " " + (e && e.message ? e.message : String(e)));
+        } catch (error) {
+            setStatus(t("env.status.error") + " " + (error && error.message ? error.message : String(error)));
         }
     };
 
@@ -696,48 +714,48 @@ function envInit() {
             return;
         try {
             setStatus(t("env.status.saving"));
-            var r = await fetch("/env/reset", { method: "POST" });
-            var txt = await r.text();
-            if (!r.ok) {
-                setStatus(t("env.status.error") + " " + (txt || r.status));
+            var response = await fetch("/env/reset", { method: "POST" });
+            var responseText = await response.text();
+            if (!response.ok) {
+                setStatus(t("env.status.error") + " " + (responseText || response.status));
                 return;
             }
             setStatus(t("env.status.reset"));
             window.envRefresh();
-        } catch (e) {
-            setStatus(t("env.status.error") + " " + (e && e.message ? e.message : String(e)));
+        } catch (error) {
+            setStatus(t("env.status.error") + " " + (error && error.message ? error.message : String(error)));
         }
     };
 
     window.envRestore = async function () {
-        if (!file || !file.files || !file.files.length) {
+        if (!fileInput || !fileInput.files || !fileInput.files.length) {
             alert(t("env.error.no_file"));
             return;
         }
         if (!confirm(t("env.confirm.restore")))
             return;
         try {
-            var fd = new FormData();
-            fd.append("envfile", file.files[0]);
+            var formData = new FormData();
+            formData.append("envfile", fileInput.files[0]);
             setStatus(t("env.status.saving"));
-            var r = await fetch("/env/restore", { method: "POST", body: fd });
-            var txt = await r.text();
-            if (!r.ok) {
-                setStatus(t("env.status.error") + " " + (txt || r.status));
+            var response = await fetch("/env/restore", { method: "POST", body: formData });
+            var responseText = await response.text();
+            if (!response.ok) {
+                setStatus(t("env.status.error") + " " + (responseText || response.status));
                 return;
             }
             setStatus(t("env.status.restored"));
             window.envRefresh();
-        } catch (e) {
-            setStatus(t("env.status.error") + " " + (e && e.message ? e.message : String(e)));
+        } catch (error) {
+            setStatus(t("env.status.error") + " " + (error && error.message ? error.message : String(error)));
         }
     };
 
     window.envRefresh();
 }
 
-function appInit(n) {
-    APP_STATE.page = n || "";
+function appInit(pageName) {
+    APP_STATE.page = pageName || "";
     APP_STATE.i18nEnabled = isI18nAvailable();
     APP_STATE.lang = detectLang();
     APP_STATE.theme = detectTheme();
@@ -758,11 +776,11 @@ function appInit(n) {
     getSysInfo();
     getStorageInfoForSysinfo();
     // getCurrentMtdLayout();
-    (n === "index" || n === "initramfs") && getmtdlayoutlist();
-    n === "backup" && backupInit();
-    n === "flash" && flashInit();
-    n === "console" && consoleInit();
-    n === "env" && envInit()
+    (pageName === "index" || pageName === "initramfs") && getmtdlayoutlist();
+    pageName === "backup" && backupInit();
+    pageName === "flash" && flashInit();
+    pageName === "console" && consoleInit();
+    pageName === "env" && envInit()
 
     const Yuzhii_VERSION = 'UBOOT-MTK-20250711';
     const Yuzhii_LINK = 'https://github.com/Yuzhii0718/';
@@ -772,22 +790,22 @@ function appInit(n) {
 function updateGptNavVisibility() {
     // Hide GPT update entry when no MMC is present (runtime detection).
     // If backupinfo is unavailable, keep it visible (fallback behavior).
-    var el = document.querySelector("#sidebar [data-nav-id='gpt']");
-    if (!el) return;
-    var bi = APP_STATE.backupinfo;
-    if (!bi || !bi.mmc || typeof bi.mmc.present === "undefined") {
-        el.style.display = "none";
+    var gptNavLink = document.querySelector("#sidebar [data-nav-id='gpt']");
+    if (!gptNavLink) return;
+    var backupInfo = APP_STATE.backupinfo;
+    if (!backupInfo || !backupInfo.mmc || typeof backupInfo.mmc.present === "undefined") {
+        gptNavLink.style.display = "none";
         return;
     }
-    el.style.display = bi.mmc.present === false ? "none" : "";
-    console.warn("GPT nav visibility updated based on MMC presence:", bi.mmc.present);
+    gptNavLink.style.display = backupInfo.mmc.present === false ? "none" : "";
+    console.warn("GPT nav visibility updated based on MMC presence:", backupInfo.mmc.present);
 }
 
 function updateSimgNavVisibility() {
     // Hide Single Image entry unless the page is actually served.
-    var el = document.querySelector("#sidebar [data-nav-id='simg']");
-    if (!el) return;
-    el.style.display = "none";
+    var simgNavLink = document.querySelector("#sidebar [data-nav-id='simg']");
+    if (!simgNavLink) return;
+    simgNavLink.style.display = "none";
 
     // Avoid repeated probes.
     if (APP_STATE._simg_probe_done) return;
@@ -795,49 +813,49 @@ function updateSimgNavVisibility() {
 
     try {
         fetch("/simg.html?_probe=1", { method: "GET", cache: "no-store" })
-            .then(function (r) {
-                if (r && r.ok) {
-                    el.style.display = "";
+            .then(function (response) {
+                if (response && response.ok) {
+                    simgNavLink.style.display = "";
                     return;
                 }
-                console.warn("SIMG probe HTTP status:", r ? r.status : "unknown");
+                console.warn("SIMG probe HTTP status:", response ? response.status : "unknown");
                 console.info("If SIMG feature is not enabled, this warning is expected.");
             })
             .catch(function () { });
-    } catch (e) {
-        console.warn("Unexpected error during SIMG probe:", e);
+    } catch (error) {
+        console.warn("Unexpected error during SIMG probe:", error);
     }
 }
 
 function renderSysInfo() {
-    var n = document.getElementById("sysinfo"), i, u, f;
-    if (!n) return;
-    i = APP_STATE.sysinfo;
-    if (!i) {
-        n.textContent = t("sysinfo.loading");
+    var sysinfoContainer = document.getElementById("sysinfo"), sysinfoData, boardInfo, ramInfo;
+    if (!sysinfoContainer) return;
+    sysinfoData = APP_STATE.sysinfo;
+    if (!sysinfoData) {
+        sysinfoContainer.textContent = t("sysinfo.loading");
         return
     }
-    u = i.board || {};
-    f = i.ram || {};
+    boardInfo = sysinfoData.board || {};
+    ramInfo = sysinfoData.ram || {};
 
-    while (n.firstChild) n.removeChild(n.firstChild);
-    n.classList.remove("sysinfo-expanded");
+    while (sysinfoContainer.firstChild) sysinfoContainer.removeChild(sysinfoContainer.firstChild);
+    sysinfoContainer.classList.remove("sysinfo-expanded");
 
     var summary = document.createElement("div");
     summary.className = "sysinfo-summary";
 
     var boardLine = document.createElement("div");
     boardLine.className = "sysinfo-line";
-    boardLine.textContent = t("sysinfo.board") + " " + (u.model || t("sysinfo.unknown"));
+    boardLine.textContent = t("sysinfo.board") + " " + (boardInfo.model || t("sysinfo.unknown"));
     summary.appendChild(boardLine);
 
     var ramLine = document.createElement("div");
     ramLine.className = "sysinfo-line";
-    ramLine.textContent = t("sysinfo.ram") + " " + (f.size !== undefined && f.size !== null && f.size !== 0 ? bytesToHuman(f.size) : t("sysinfo.unknown"));
+    ramLine.textContent = t("sysinfo.ram") + " " + (ramInfo.size !== undefined && ramInfo.size !== null && ramInfo.size !== 0 ? bytesToHuman(ramInfo.size) : t("sysinfo.unknown"));
     summary.appendChild(ramLine);
 
-    if (i.storage && i.storage.mtd_layout) {
-        var mtdSummary = i.storage.mtd_layout || {};
+    if (sysinfoData.storage && sysinfoData.storage.mtd_layout) {
+        var mtdSummary = sysinfoData.storage.mtd_layout || {};
         if (mtdSummary.current) {
             var curLayoutLine = document.createElement("div");
             curLayoutLine.className = "sysinfo-line";
@@ -846,7 +864,7 @@ function renderSysInfo() {
         }
     }
 
-    n.appendChild(summary);
+    sysinfoContainer.appendChild(summary);
 
     var details = document.createElement("details");
     details.className = "sysinfo-details";
@@ -858,7 +876,7 @@ function renderSysInfo() {
     var extra = document.createElement("div");
     extra.className = "sysinfo-extra";
 
-    if (i.storage && i.storage.mtd_layout) {
+    if (sysinfoData.storage && sysinfoData.storage.mtd_layout) {
         if (mtdSummary.current_parts) {
             var curPartsLine = document.createElement("div");
             curPartsLine.className = "sysinfo-line sysinfo-mtdparts";
@@ -867,23 +885,23 @@ function renderSysInfo() {
         }
     }
 
-    if (i.build_variant) {
+    if (sysinfoData.build_variant) {
         var variantLine = document.createElement("div");
         variantLine.className = "sysinfo-line";
-        variantLine.textContent = t("sysinfo.variant", "Variant") + " " + i.build_variant;
+        variantLine.textContent = t("sysinfo.variant", "Variant") + " " + sysinfoData.build_variant;
         extra.appendChild(variantLine);
     }
 
-    if (u.compatible) {
+    if (boardInfo.compatible) {
         var compatLine = document.createElement("div");
         compatLine.className = "sysinfo-line";
-        compatLine.textContent = t("sysinfo.compat", "Compatible") + " " + u.compatible;
+        compatLine.textContent = t("sysinfo.compat", "Compatible") + " " + boardInfo.compatible;
         extra.appendChild(compatLine);
     }
 
-    if (i.storage && i.storage.mtd_layout) {
-        var mtd = i.storage.mtd_layout || {};
-        var layouts = mtd.layouts || [];
+    if (sysinfoData.storage && sysinfoData.storage.mtd_layout) {
+        var mtdLayoutInfo = sysinfoData.storage.mtd_layout || {};
+        var layouts = mtdLayoutInfo.layouts || [];
         if (layouts && layouts.length) {
             var layoutTitle = document.createElement("div");
             layoutTitle.className = "sysinfo-line sysinfo-section";
@@ -892,8 +910,8 @@ function renderSysInfo() {
 
             var layoutList = document.createElement("ul");
             layoutList.className = "sysinfo-list";
-            for (var li = 0; li < layouts.length; li++) {
-                var item = layouts[li] || {};
+            for (var layoutIndex = 0; layoutIndex < layouts.length; layoutIndex++) {
+                var item = layouts[layoutIndex] || {};
                 var entry = document.createElement("li");
                 var parts = item.parts ? " " + item.parts : "";
                 entry.textContent = (item.label || "-") + ":" + parts;
@@ -903,22 +921,22 @@ function renderSysInfo() {
         }
     }
 
-    if (i.storage && i.storage.mmc && i.storage.mmc.present) {
-        var mmc = i.storage.mmc;
+    if (sysinfoData.storage && sysinfoData.storage.mmc && sysinfoData.storage.mmc.present) {
+        var mmcInfo = sysinfoData.storage.mmc;
         var mmcTitle = document.createElement("div");
         mmcTitle.className = "sysinfo-line sysinfo-section";
         mmcTitle.textContent = t("sysinfo.mmc", "MMC partitions");
         extra.appendChild(mmcTitle);
 
-        if (mmc.parts && mmc.parts.length) {
+        if (mmcInfo.parts && mmcInfo.parts.length) {
             var list = document.createElement("ul");
             list.className = "sysinfo-list";
-            for (var iPart = 0; iPart < mmc.parts.length; iPart++) {
-                var p = mmc.parts[iPart];
-                var li = document.createElement("li");
-                var sizeTxt = p.size ? bytesToHuman(p.size) : t("sysinfo.unknown");
-                li.textContent = (p.name || "-") + " (" + sizeTxt + ")";
-                list.appendChild(li);
+            for (var partitionIndex = 0; partitionIndex < mmcInfo.parts.length; partitionIndex++) {
+                var partition = mmcInfo.parts[partitionIndex];
+                var listItem = document.createElement("li");
+                var sizeText = partition.size ? bytesToHuman(partition.size) : t("sysinfo.unknown");
+                listItem.textContent = (partition.name || "-") + " (" + sizeText + ")";
+                list.appendChild(listItem);
             }
             extra.appendChild(list);
         } else {
@@ -931,10 +949,10 @@ function renderSysInfo() {
 
     if (extra.childNodes.length) {
         details.appendChild(extra);
-        n.appendChild(details);
+        sysinfoContainer.appendChild(details);
 
         var toggleExpanded = function () {
-            details.open ? n.classList.add("sysinfo-expanded") : n.classList.remove("sysinfo-expanded");
+            details.open ? sysinfoContainer.classList.add("sysinfo-expanded") : sysinfoContainer.classList.remove("sysinfo-expanded");
         };
         details.addEventListener("toggle", toggleExpanded);
         toggleExpanded();
@@ -944,17 +962,17 @@ function renderSysInfo() {
 function getSysInfo() {
     // Always fetch sysinfo into APP_STATE (used by features like backup filename),
     // but only render when the sysinfo element exists on current page.
-    var n = document.getElementById("sysinfo");
-    n && renderSysInfo();
+    var sysinfoElement = document.getElementById("sysinfo");
+    sysinfoElement && renderSysInfo();
     ajax({
         url: "/sysinfo",
-        done: function (txt) {
+        done: function (responseText) {
             try {
-                APP_STATE.sysinfo = JSON.parse(txt)
-            } catch (t) {
+                APP_STATE.sysinfo = JSON.parse(responseText)
+            } catch (error) {
                 return
             }
-            n && renderSysInfo()
+            sysinfoElement && renderSysInfo()
         }
     })
 }
@@ -969,12 +987,12 @@ async function ensureSysInfoLoaded() {
 
     APP_STATE._sysinfo_promise = (async function () {
         try {
-            var r = await fetch("/sysinfo", { method: "GET" });
-            if (!r || !r.ok) return null;
-            var j = await r.json();
-            j && (APP_STATE.sysinfo = j);
-            return j;
-        } catch (e) {
+            var response = await fetch("/sysinfo", { method: "GET" });
+            if (!response || !response.ok) return null;
+            var payload = await response.json();
+            payload && (APP_STATE.sysinfo = payload);
+            return payload;
+        } catch (error) {
             return null;
         } finally {
             // allow retry later
@@ -993,10 +1011,10 @@ function getStorageInfoForSysinfo() {
     }
     ajax({
         url: "/backup/info",
-        done: function (txt) {
+        done: function (responseText) {
             try {
-                APP_STATE.backupinfo = JSON.parse(txt);
-            } catch (e) { return; }
+                APP_STATE.backupinfo = JSON.parse(responseText);
+            } catch (error) { return; }
             updateGptNavVisibility();
             renderSysInfo();
         }
@@ -1025,12 +1043,12 @@ function startup() {
 function getmtdlayoutlist() {
     ajax({
         url: "/getmtdlayout",
-        done: function (n) {
-            var i, f, e, u, r, o;
-            if (n != "error" && (i = n.split(";"), f = document.getElementById("current_mtd_layout"), f && (f.innerHTML = t("label.current_mtd") + i[0]), e = document.getElementById("choose_mtd_layout"), e && (e.textContent = t("label.choose_mtd")), u = document.getElementById("mtd_layout_label"), u)) {
-                for (u.options.length = 0, r = 1; r < i.length; r++) i[r].length > 0 && u.options.add(new Option(i[r], i[r]));
-                o = document.getElementById("mtd_layout");
-                o && (o.style.display = "")
+        done: function (responseText) {
+            var layoutNames, currentLayoutElement, chooseLayoutElement, layoutSelect, layoutIndex, layoutContainer;
+            if (responseText != "error" && (layoutNames = responseText.split(";"), currentLayoutElement = document.getElementById("current_mtd_layout"), currentLayoutElement && (currentLayoutElement.innerHTML = t("label.current_mtd") + layoutNames[0]), chooseLayoutElement = document.getElementById("choose_mtd_layout"), chooseLayoutElement && (chooseLayoutElement.textContent = t("label.choose_mtd")), layoutSelect = document.getElementById("mtd_layout_label"), layoutSelect)) {
+                for (layoutSelect.options.length = 0, layoutIndex = 1; layoutIndex < layoutNames.length; layoutIndex++) layoutNames[layoutIndex].length > 0 && layoutSelect.options.add(new Option(layoutNames[layoutIndex], layoutNames[layoutIndex]));
+                layoutContainer = document.getElementById("mtd_layout");
+                layoutContainer && (layoutContainer.style.display = "")
             }
         }
     })
@@ -1039,146 +1057,146 @@ function getmtdlayoutlist() {
 function getversion() {
     ajax({
         url: "/version",
-        done: function (n) {
-            var t = document.getElementById("version");
-            t && (t.innerHTML = n);
+        done: function (versionText) {
+            var versionElement = document.getElementById("version");
+            versionElement && (versionElement.innerHTML = versionText);
             ensureBranding()
         }
     })
 }
 
-function upload(n) {
-    var o = document.getElementById("file").files[0],
-        u, f, e, r, i, s, a;
-    o && (a = o.name || "", u = document.getElementById("form"), u && (u.style.display = "none"), f = document.getElementById("hint"), f && (f.style.display = "none"), e = document.getElementById("bar"), e && (e.style.display = "block"), r = new FormData, r.append(n, o), i = document.getElementById("mtd_layout_label"), i && i.options.length > 0 && (s = i.selectedIndex, r.append("mtd_layout", i.options[s].value)), ajax({
+function upload(formFieldName) {
+    var selectedFile = document.getElementById("file").files[0],
+        formElement, hintElement, progressBarElement, formData, layoutSelect, layoutIndex, selectedLayoutName;
+    selectedFile && (selectedLayoutName = selectedFile.name || "", formElement = document.getElementById("form"), formElement && (formElement.style.display = "none"), hintElement = document.getElementById("hint"), hintElement && (hintElement.style.display = "none"), progressBarElement = document.getElementById("bar"), progressBarElement && (progressBarElement.style.display = "block"), formData = new FormData, formData.append(formFieldName, selectedFile), layoutSelect = document.getElementById("mtd_layout_label"), layoutSelect && layoutSelect.options.length > 0 && (layoutIndex = layoutSelect.selectedIndex, formData.append("mtd_layout", layoutSelect.options[layoutIndex].value)), ajax({
         url: "/upload",
-        data: r,
-        done: function (n) {
-            var i, r, u, f, e, l, md5InName, md5Hint, md5Ok, md5Match, md5Class;
-            n == "fail" ? location = "/fail.html" : (i = n.split(" "), l = document.getElementById("filename"), l && a && (l.style.display = "block", l.innerHTML = "<span class=\"filename-label\">" + t("label.file") + "</span><span class=\"filename-value\">" + a + "</span>"), r = document.getElementById("size"), r && (r.style.display = "block", r.innerHTML = t("label.size") + i[0]), u = document.getElementById("md5"), md5Match = a ? /(?:^|[._-])md5-([0-9a-fA-F]{32})(?:$|[._-])/.exec(a) : null, md5InName = md5Match && md5Match[1] ? md5Match[1] : "", u && (u.style.display = "block", md5Ok = i[1] && md5InName && String(i[1]).toLowerCase() === String(md5InName).toLowerCase(), md5Hint = md5InName ? (md5Ok ? t("md5.match") : t("md5.mismatch")) : "", md5Class = md5InName ? (md5Ok ? "md5-ok" : "md5-bad") : "", u.innerHTML = t("label.md5") + i[1] + (md5Hint ? " <span class=\"md5-status " + md5Class + "\">" + md5Hint + "</span>" : "")), f = document.getElementById("mtd"), f && i[2] && (f.style.display = "block", f.innerHTML = t("label.mtd") + i[2]), e = document.getElementById("upgrade"), e && (e.style.display = "block"))
+        data: formData,
+        done: function (responseText) {
+            var responseParts, sizeElement, md5Element, mtdElement, upgradeElement, filenameElement, md5InName, md5Hint, md5Ok, md5Match, md5Class;
+            responseText == "fail" ? location = "/fail.html" : (responseParts = responseText.split(" "), filenameElement = document.getElementById("filename"), filenameElement && selectedLayoutName && (filenameElement.style.display = "block", filenameElement.innerHTML = "<span class=\"filename-label\">" + t("label.file") + "</span><span class=\"filename-value\">" + selectedLayoutName + "</span>"), sizeElement = document.getElementById("size"), sizeElement && (sizeElement.style.display = "block", sizeElement.innerHTML = t("label.size") + responseParts[0]), md5Element = document.getElementById("md5"), md5Match = selectedLayoutName ? /(?:^|[._-])md5-([0-9a-fA-F]{32})(?:$|[._-])/.exec(selectedLayoutName) : null, md5InName = md5Match && md5Match[1] ? md5Match[1] : "", md5Element && (md5Element.style.display = "block", md5Ok = responseParts[1] && md5InName && String(responseParts[1]).toLowerCase() === String(md5InName).toLowerCase(), md5Hint = md5InName ? (md5Ok ? t("md5.match") : t("md5.mismatch")) : "", md5Class = md5InName ? (md5Ok ? "md5-ok" : "md5-bad") : "", md5Element.innerHTML = t("label.md5") + responseParts[1] + (md5Hint ? " <span class=\"md5-status " + md5Class + "\">" + md5Hint + "</span>" : "")), mtdElement = document.getElementById("mtd"), mtdElement && responseParts[2] && (mtdElement.style.display = "block", mtdElement.innerHTML = t("label.mtd") + responseParts[2]), upgradeElement = document.getElementById("upgrade"), upgradeElement && (upgradeElement.style.display = "block"))
         },
-        progress: function (n) {
-            if (n.total) {
-                var i = parseInt(n.loaded / n.total * 100),
-                    t = document.getElementById("bar");
-                t && (t.style.display = "block", t.style.setProperty("--percent", i))
+        progress: function (progressEvent) {
+            if (progressEvent.total) {
+                var percent = parseInt(progressEvent.loaded / progressEvent.total * 100),
+                    progressElement = document.getElementById("bar");
+                progressElement && (progressElement.style.display = "block", progressElement.style.setProperty("--percent", percent))
             }
         }
     }))
 }
 
-function bytesToHuman(n) {
-    var t;
-    return n === null || n === undefined ? "" : (t = Number(n), !isFinite(t) || t < 0) ? "" : t >= 1024 * 1024 * 1024 ? (t / (1024 * 1024 * 1024)).toFixed(2) + " GiB" : t >= 1024 * 1024 ? (t / (1024 * 1024)).toFixed(2) + " MiB" : t >= 1024 ? (t / 1024).toFixed(2) + " KiB" : String(Math.floor(t)) + " B"
+function bytesToHuman(bytes) {
+    var numericBytes;
+    return bytes === null || bytes === undefined ? "" : (numericBytes = Number(bytes), !isFinite(numericBytes) || numericBytes < 0) ? "" : numericBytes >= 1024 * 1024 * 1024 ? (numericBytes / (1024 * 1024 * 1024)).toFixed(2) + " GiB" : numericBytes >= 1024 * 1024 ? (numericBytes / (1024 * 1024)).toFixed(2) + " MiB" : numericBytes >= 1024 ? (numericBytes / 1024).toFixed(2) + " KiB" : String(Math.floor(numericBytes)) + " B"
 }
 
-function parseFilenameFromDisposition(n) {
-    var t, i;
-    return n ? (t = /filename\s*=\s*"([^"]+)"/i.exec(n), t && t[1]) ? t[1] : (i = /filename\s*=\s*([^;\s]+)/i.exec(n), i && i[1] ? i[1].replace(/^"|"$/g, "") : "") : ""
+function parseFilenameFromDisposition(dispositionHeader) {
+    var quotedFilenameMatch, unquotedFilenameMatch;
+    return dispositionHeader ? (quotedFilenameMatch = /filename\s*=\s*"([^"]+)"/i.exec(dispositionHeader), quotedFilenameMatch && quotedFilenameMatch[1]) ? quotedFilenameMatch[1] : (unquotedFilenameMatch = /filename\s*=\s*([^;\s]+)/i.exec(dispositionHeader), unquotedFilenameMatch && unquotedFilenameMatch[1] ? unquotedFilenameMatch[1].replace(/^"|"$/g, "") : "") : ""
 }
 
-function sanitizeFilenameComponent(n) {
-    return n ? String(n).replace(/[^a-zA-Z0-9._-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 48) : ""
+function sanitizeFilenameComponent(value) {
+    return value ? String(value).replace(/[^a-zA-Z0-9._-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 48) : ""
 }
 
 function getNowYYYYMMDD() {
-    var n = new Date, t = n.getFullYear(), i = n.getMonth() + 1, r = n.getDate();
-    return String(t) + String(i).padStart(2, "0") + String(r).padStart(2, "0")
+    var now = new Date, year = now.getFullYear(), month = now.getMonth() + 1, day = now.getDate();
+    return String(year) + String(month).padStart(2, "0") + String(day).padStart(2, "0")
 }
 
-function makeBackupDownloadName(n) {
-    var u = (APP_STATE.sysinfo && APP_STATE.sysinfo.board && APP_STATE.sysinfo.board.model) ? APP_STATE.sysinfo.board.model : "";
-    var t = sanitizeFilenameComponent(u) || "board";
-    var i = getNowYYYYMMDD();
-    var r = String(n || "backup.bin");
+function makeBackupDownloadName(originalName) {
+    var boardModel = (APP_STATE.sysinfo && APP_STATE.sysinfo.board && APP_STATE.sysinfo.board.model) ? APP_STATE.sysinfo.board.model : "";
+    var boardComponent = sanitizeFilenameComponent(boardModel) || "board";
+    var dateStamp = getNowYYYYMMDD();
+    var downloadName = String(originalName || "backup.bin");
 
     // Ensure it starts with backup_
-    r.indexOf("backup_") === 0 || (r = "backup_" + r.replace(/^_+/, ""));
+    downloadName.indexOf("backup_") === 0 || (downloadName = "backup_" + downloadName.replace(/^_+/, ""));
 
     // Insert board right after backup_ if not already
-    r.indexOf("backup_" + t + "_") === 0 || (r = r.replace(/^backup_/, "backup_" + t + "_"));
+    downloadName.indexOf("backup_" + boardComponent + "_") === 0 || (downloadName = downloadName.replace(/^backup_/, "backup_" + boardComponent + "_"));
 
     // Ensure .bin extension
-    /\.[A-Za-z0-9]+$/.test(r) || (r = r + ".bin");
+    /\.[A-Za-z0-9]+$/.test(downloadName) || (downloadName = downloadName + ".bin");
 
     // Append date before extension if not already present
-    /_\d{8}\.[A-Za-z0-9]+$/.test(r) || (r = r.replace(/(\.[A-Za-z0-9]+)$/, "_" + i + "$1"));
+    /_\d{8}\.[A-Za-z0-9]+$/.test(downloadName) || (downloadName = downloadName.replace(/(\.[A-Za-z0-9]+)$/, "_" + dateStamp + "$1"));
 
-    return r
+    return downloadName
 }
 
-function parseUserLen(n) {
-    var t, i, r;
-    if (!n) return null;
-    if (n = String(n).trim(), n === "") return null;
-    t = /^\s*(0x[0-9a-fA-F]+|\d+)\s*([a-zA-Z]*)\s*$/.exec(n);
-    if (!t) return null;
-    i = t[1].toLowerCase().indexOf("0x") === 0 ? parseInt(t[1], 16) : parseInt(t[1], 10);
-    if (!isFinite(i) || i < 0) return null;
-    r = (t[2] || "").toLowerCase();
-    return r === "" ? i : r === "k" || r === "kb" || r === "kib" ? i * 1024 : null
+function parseUserLen(input) {
+    var match, numericValue, suffix;
+    if (!input) return null;
+    if (input = String(input).trim(), input === "") return null;
+    match = /^\s*(0x[0-9a-fA-F]+|\d+)\s*([a-zA-Z]*)\s*$/.exec(input);
+    if (!match) return null;
+    numericValue = match[1].toLowerCase().indexOf("0x") === 0 ? parseInt(match[1], 16) : parseInt(match[1], 10);
+    if (!isFinite(numericValue) || numericValue < 0) return null;
+    suffix = (match[2] || "").toLowerCase();
+    return suffix === "" ? numericValue : suffix === "k" || suffix === "kb" || suffix === "kib" ? numericValue * 1024 : null
 }
 
-function flashSetStatus(n) {
-    var s = document.getElementById("flash_status");
+function flashSetStatus(message) {
+    var statusElement = document.getElementById("flash_status");
     var txt = document.getElementById("flash_status_text");
     var spin = document.getElementById("flash_spinner");
-    var busy = n === t("flash.status.uploading") || n === t("flash.status.restoring");
-    if (!s) return;
-    s.style.display = n ? "flex" : "none";
-    txt && (txt.textContent = n || "");
+    var busy = message === t("flash.status.uploading") || message === t("flash.status.restoring");
+    if (!statusElement) return;
+    statusElement.style.display = message ? "flex" : "none";
+    txt && (txt.textContent = message || "");
     spin && (spin.style.display = busy ? "block" : "none");
 }
 
-function flashSetProgress(n) {
-    var t = document.getElementById("flash_restore_bar"), i;
-    if (!t) return;
-    if (n === null || n === undefined) {
-        t.style.display = "none";
+function flashSetProgress(percent) {
+    var progressElement = document.getElementById("flash_restore_bar"), boundedPercent;
+    if (!progressElement) return;
+    if (percent === null || percent === undefined) {
+        progressElement.style.display = "none";
         return;
     }
-    i = Math.max(0, Math.min(100, parseInt(n || 0)));
-    t.style.display = "block";
-    t.style.setProperty("--percent", i)
+    boundedPercent = Math.max(0, Math.min(100, parseInt(percent || 0)));
+    progressElement.style.display = "block";
+    progressElement.style.setProperty("--percent", boundedPercent)
 }
 
 function flashUpdateRangeHint() {
-    var u = document.getElementById("flash_range_hint"), n, i, r;
-    if (!u) return;
-    n = parseUserLen(document.getElementById("flash_start").value);
-    i = parseUserLen(document.getElementById("flash_end").value);
-    n === null || i === null ? u.textContent = t("backup.range.hint") : (r = i >= n ? i - n : 0, u.textContent = "Start=" + bytesToHuman(n) + ", End=" + bytesToHuman(i) + ", Size=" + bytesToHuman(r))
+    var rangeHintElement = document.getElementById("flash_range_hint"), startValue, endValue, rangeSize;
+    if (!rangeHintElement) return;
+    startValue = parseUserLen(document.getElementById("flash_start").value);
+    endValue = parseUserLen(document.getElementById("flash_end").value);
+    startValue === null || endValue === null ? rangeHintElement.textContent = t("backup.range.hint") : (rangeSize = endValue >= startValue ? endValue - startValue : 0, rangeHintElement.textContent = "Start=" + bytesToHuman(startValue) + ", End=" + bytesToHuman(endValue) + ", Size=" + bytesToHuman(rangeSize))
 }
 
-function flashPadHex(n, w) {
-    var s = n.toString(16).toUpperCase();
-    while (s.length < w) s = "0" + s;
-    return s
+function flashPadHex(value, width) {
+    var hexString = value.toString(16).toUpperCase();
+    while (hexString.length < width) hexString = "0" + hexString;
+    return hexString
 }
 
 function flashExtractBytes(text) {
     var bytes = [];
     if (!text) return bytes;
-    var m = text.match(/[0-9a-fA-F]{2}/g);
-    if (!m) return bytes;
-    for (var i = 0; i < m.length; i++) bytes.push(parseInt(m[i], 16));
+    var byteMatches = text.match(/[0-9a-fA-F]{2}/g);
+    if (!byteMatches) return bytes;
+    for (var byteIndex = 0; byteIndex < byteMatches.length; byteIndex++) bytes.push(parseInt(byteMatches[byteIndex], 16));
     return bytes
 }
 
 function flashPosToByteIndex(text, pos) {
-    var i, hex = 0;
+    var charIndex, hexDigitCount = 0;
     if (!text || pos <= 0) return 0;
-    for (i = 0; i < pos && i < text.length; i++) {
-        if (/[0-9a-fA-F]/.test(text[i])) hex++;
+    for (charIndex = 0; charIndex < pos && charIndex < text.length; charIndex++) {
+        if (/[0-9a-fA-F]/.test(text[charIndex])) hexDigitCount++;
     }
-    return Math.floor(hex / 2)
+    return Math.floor(hexDigitCount / 2)
 }
 
 function flashByteIndexToPos(byteIndex) {
     if (!isFinite(byteIndex) || byteIndex < 0) return 0;
-    var line = Math.floor(byteIndex / 16);
-    var col = byteIndex % 16;
-    return line * 48 + col * 3
+    var lineIndex = Math.floor(byteIndex / 16);
+    var columnIndex = byteIndex % 16;
+    return lineIndex * 48 + columnIndex * 3
 }
 
 function flashSetCaretToByte(byteIndex) {
@@ -1191,58 +1209,58 @@ function flashSetCaretToByte(byteIndex) {
 }
 
 function flashFormatHexLines(bytes) {
-    var out = [];
-    for (var i = 0; i < bytes.length; i++) {
-        if (i && i % 16 === 0) out.push("\n");
-        out.push(flashPadHex(bytes[i], 2));
-        if (i % 16 !== 15 && i !== bytes.length - 1) out.push(" ");
+    var lines = [];
+    for (var byteIndex = 0; byteIndex < bytes.length; byteIndex++) {
+        if (byteIndex && byteIndex % 16 === 0) lines.push("\n");
+        lines.push(flashPadHex(bytes[byteIndex], 2));
+        if (byteIndex % 16 !== 15 && byteIndex !== bytes.length - 1) lines.push(" ");
     }
-    return out.join("")
+    return lines.join("")
 }
 
 function flashRenderHexViews() {
-    var data = document.getElementById("flash_data");
-    var off = document.getElementById("flash_offset");
-    var asc = document.getElementById("flash_ascii");
+    var dataElement = document.getElementById("flash_data");
+    var offsetElement = document.getElementById("flash_offset");
+    var asciiElement = document.getElementById("flash_ascii");
     var start = document.getElementById("flash_start");
-    if (!data || !off || !asc) return;
-    var bytes = flashExtractBytes(data.value || "");
+    if (!dataElement || !offsetElement || !asciiElement) return;
+    var bytes = flashExtractBytes(dataElement.value || "");
     var base = start ? parseUserLen(start.value) : 0;
     base = base === null ? 0 : base;
     var asciiLines = [];
     var offLines = [];
-    var i, j, rowBytes, c;
-    for (i = 0; i < bytes.length; i += 16) {
-        rowBytes = bytes.slice(i, i + 16);
-        offLines.push("0x" + flashPadHex(base + i, 8));
-        for (j = 0; j < rowBytes.length; j++) {
-            c = rowBytes[j];
-            asciiLines.push(c >= 0x20 && c <= 0x7E ? String.fromCharCode(c) : ".");
+    var rowIndex, columnIndex, rowBytes, byteValue;
+    for (rowIndex = 0; rowIndex < bytes.length; rowIndex += 16) {
+        rowBytes = bytes.slice(rowIndex, rowIndex + 16);
+        offLines.push("0x" + flashPadHex(base + rowIndex, 8));
+        for (columnIndex = 0; columnIndex < rowBytes.length; columnIndex++) {
+            byteValue = rowBytes[columnIndex];
+            asciiLines.push(byteValue >= 0x20 && byteValue <= 0x7E ? String.fromCharCode(byteValue) : ".");
         }
         if (rowBytes.length < 16) {
-            for (j = rowBytes.length; j < 16; j++) asciiLines.push(" ");
+            for (columnIndex = rowBytes.length; columnIndex < 16; columnIndex++) asciiLines.push(" ");
         }
         asciiLines.push("\n");
     }
-    off.textContent = offLines.join("\n");
-    asc.textContent = asciiLines.join("").replace(/\n$/, "");
+    offsetElement.textContent = offLines.join("\n");
+    asciiElement.textContent = asciiLines.join("").replace(/\n$/, "");
 }
 
 function flashNormalizeHexInput() {
-    var data = document.getElementById("flash_data");
-    if (!data) return;
-    var bytes = flashExtractBytes(data.value || "");
-    data.value = flashFormatHexLines(bytes);
+    var dataElement = document.getElementById("flash_data");
+    if (!dataElement) return;
+    var bytes = flashExtractBytes(dataElement.value || "");
+    dataElement.value = flashFormatHexLines(bytes);
     flashRenderHexViews()
 }
 
 function flashAlignInput(keepCaret) {
-    var data = document.getElementById("flash_data");
-    if (!data) return;
-    var caret = data.selectionStart || 0;
-    var byteIndex = flashPosToByteIndex(data.value || "", caret);
-    var bytes = flashExtractBytes(data.value || "");
-    data.value = flashFormatHexLines(bytes);
+    var dataElement = document.getElementById("flash_data");
+    if (!dataElement) return;
+    var caretPosition = dataElement.selectionStart || 0;
+    var byteIndex = flashPosToByteIndex(dataElement.value || "", caretPosition);
+    var bytes = flashExtractBytes(dataElement.value || "");
+    dataElement.value = flashFormatHexLines(bytes);
     if (keepCaret)
         flashSetCaretToByte(byteIndex);
     flashRenderHexViews()
@@ -1255,44 +1273,44 @@ function flashFormatData() {
 }
 
 function flashSnapCaret() {
-    var data = document.getElementById("flash_data");
-    if (!data) return;
-    var caret = data.selectionStart || 0;
-    var byteIndex = flashPosToByteIndex(data.value || "", caret);
+    var dataElement = document.getElementById("flash_data");
+    if (!dataElement) return;
+    var caretPosition = dataElement.selectionStart || 0;
+    var byteIndex = flashPosToByteIndex(dataElement.value || "", caretPosition);
     flashSetCaretToByte(byteIndex)
 }
 
 function flashSyncScroll() {
-    var data = document.getElementById("flash_data");
-    var off = document.getElementById("flash_offset");
-    var asc = document.getElementById("flash_ascii");
-    if (!data || !off || !asc) return;
-    off.scrollTop = data.scrollTop;
-    asc.scrollTop = data.scrollTop
+    var dataElement = document.getElementById("flash_data");
+    var offsetElement = document.getElementById("flash_offset");
+    var asciiElement = document.getElementById("flash_ascii");
+    if (!dataElement || !offsetElement || !asciiElement) return;
+    offsetElement.scrollTop = dataElement.scrollTop;
+    asciiElement.scrollTop = dataElement.scrollTop
 }
 
 function flashJumpToOffset() {
-    var jump = document.getElementById("flash_jump");
+    var jumpInput = document.getElementById("flash_jump");
     var start = document.getElementById("flash_start");
-    var data = document.getElementById("flash_data");
-    if (!jump || !data) return;
-    var target = parseUserLen(jump.value);
-    if (target === null) {
+    var dataElement = document.getElementById("flash_data");
+    if (!jumpInput || !dataElement) return;
+    var targetOffset = parseUserLen(jumpInput.value);
+    if (targetOffset === null) {
         flashSetStatus(t("flash.error.jump"));
         return
     }
     var base = start ? parseUserLen(start.value) : 0;
     base = base === null ? 0 : base;
-    var bytes = flashExtractBytes(data.value || "");
-    var byteIndex = target - base;
+    var bytes = flashExtractBytes(dataElement.value || "");
+    var byteIndex = targetOffset - base;
     if (byteIndex < 0 || byteIndex >= bytes.length) {
         flashSetStatus(t("flash.error.jump"));
         return
     }
     flashSetCaretToByte(byteIndex);
-    var lineHeight = parseFloat(getComputedStyle(data).lineHeight) || 18;
-    var line = Math.floor(byteIndex / 16);
-    data.scrollTop = line * lineHeight;
+    var lineHeight = parseFloat(getComputedStyle(dataElement).lineHeight) || 18;
+    var lineIndex = Math.floor(byteIndex / 16);
+    dataElement.scrollTop = lineIndex * lineHeight;
     flashSyncScroll();
     flashSetStatus("")
 }
@@ -1334,25 +1352,25 @@ function flashParseBackupFilename(name) {
 }
 
 function flashSelectTarget(val) {
-    var sel = document.getElementById("flash_target"), i;
-    if (!sel) return false;
-    for (i = 0; i < sel.options.length; i++) if (sel.options[i].value === val) {
-        sel.selectedIndex = i;
+    var targetSelect = document.getElementById("flash_target"), optionIndex;
+    if (!targetSelect) return false;
+    for (optionIndex = 0; optionIndex < targetSelect.options.length; optionIndex++) if (targetSelect.options[optionIndex].value === val) {
+        targetSelect.selectedIndex = optionIndex;
         return true
     }
     return false
 }
 
 function flashGetDeviceNameByStorage(storage) {
-    var bi = APP_STATE && APP_STATE.backupinfo ? APP_STATE.backupinfo : null;
+    var backupInfo = APP_STATE && APP_STATE.backupinfo ? APP_STATE.backupinfo : null;
     var mmcName = "";
     var mtdName = "";
-    if (bi && bi.mmc && bi.mmc.present) {
-        mmcName = [bi.mmc.vendor || "", bi.mmc.product || ""].join(" ").trim();
+    if (backupInfo && backupInfo.mmc && backupInfo.mmc.present) {
+        mmcName = [backupInfo.mmc.vendor || "", backupInfo.mmc.product || ""].join(" ").trim();
         if (!mmcName) mmcName = "MMC";
     }
-    if (bi && bi.mtd && bi.mtd.present) {
-        mtdName = (bi.mtd.model || "").trim();
+    if (backupInfo && backupInfo.mtd && backupInfo.mtd.present) {
+        mtdName = (backupInfo.mtd.model || "").trim();
         if (!mtdName) mtdName = "MTD";
     }
     if (storage === "mtd") return mtdName || "MTD";
@@ -1361,272 +1379,300 @@ function flashGetDeviceNameByStorage(storage) {
 }
 
 function flashBuildErasePlan() {
-    var target = document.getElementById("flash_target");
-    var startEl = document.getElementById("flash_start");
-    var endEl = document.getElementById("flash_end");
-    var v, seg, storage, tname, isRaw, startStr, endStr, hasStart, hasEnd, start, end;
-    var targetLabel, detail;
+    var targetSelect = document.getElementById("flash_target");
+    var startInput = document.getElementById("flash_start");
+    var endInput = document.getElementById("flash_end");
+    var targetValue, targetParts, storageType, targetName, isRawTarget;
+    var startText, endText, hasStartRange, hasEndRange, startValue, endValue;
+    var targetLabel, detailText;
 
-    if (!target || !target.value)
+    if (!targetSelect || !targetSelect.value)
         return { error: t("flash.error.no_target") };
 
-    v = String(target.value);
-    seg = v.split(":");
-    storage = seg.length > 1 ? seg[0] : "auto";
-    tname = seg.length > 1 ? seg.slice(1).join(":") : v;
-    isRaw = tname === "raw";
+    targetValue = String(targetSelect.value);
+    targetParts = targetValue.split(":");
+    storageType = targetParts.length > 1 ? targetParts[0] : "auto";
+    targetName = targetParts.length > 1 ? targetParts.slice(1).join(":") : targetValue;
+    isRawTarget = targetName === "raw";
 
-    startStr = startEl && startEl.value ? String(startEl.value).trim() : "";
-    endStr = endEl && endEl.value ? String(endEl.value).trim() : "";
-    hasStart = !!startStr;
-    hasEnd = !!endStr;
+    startText = startInput && startInput.value ? String(startInput.value).trim() : "";
+    endText = endInput && endInput.value ? String(endInput.value).trim() : "";
+    hasStartRange = !!startText;
+    hasEndRange = !!endText;
 
-    if (hasStart !== hasEnd)
+    if (hasStartRange !== hasEndRange)
         return { error: t("flash.error.bad_range") };
 
-    if (hasStart && hasEnd) {
-        start = parseUserLen(startStr);
-        end = parseUserLen(endStr);
-        if (start === null || end === null || end <= start)
+    if (hasStartRange && hasEndRange) {
+        startValue = parseUserLen(startText);
+        endValue = parseUserLen(endText);
+        if (startValue === null || endValue === null || endValue <= startValue)
             return { error: t("flash.error.bad_range") };
     }
 
-    if (isRaw && !hasStart)
+    if (isRawTarget && !hasStartRange)
         return { error: t("flash.error.bad_range") + " (raw target requires start/end)" };
 
-    targetLabel = isRaw ? "" : (tname + " 分区");
-    if (hasStart)
-        detail = isRaw ? ("0x" + start.toString(16) + "~0x" + end.toString(16)) :
-            (targetLabel + " 的 0x" + start.toString(16) + "~0x" + end.toString(16));
-    else
-        detail = targetLabel;
+    targetLabel = isRawTarget ? "" : (targetName + " 分区");
+    detailText = hasStartRange ? (isRawTarget ? ("0x" + startValue.toString(16) + "~0x" + endValue.toString(16)) : (targetLabel + " 的 0x" + startValue.toString(16) + "~0x" + endValue.toString(16))) : targetLabel;
 
     return {
-        storage: storage,
-        target: v,
-        hasRange: hasStart,
-        start: hasStart ? start : null,
-        end: hasStart ? end : null,
-        detail: detail,
-        deviceName: flashGetDeviceNameByStorage(storage)
+        storage: storageType,
+        target: targetValue,
+        hasRange: hasStartRange,
+        start: hasStartRange ? startValue : null,
+        end: hasStartRange ? endValue : null,
+        detail: detailText,
+        deviceName: flashGetDeviceNameByStorage(storageType)
     };
 }
 
 function flashInit() {
-    var target = document.getElementById("flash_target");
-    var start = document.getElementById("flash_start");
-    var end = document.getElementById("flash_end");
-    var data = document.getElementById("flash_data");
-    var info = document.getElementById("flash_info");
-    var restoreInfo = document.getElementById("flash_restore_info");
-    var backup = document.getElementById("flash_backup");
+    var targetSelect = document.getElementById("flash_target");
+    var startInput = document.getElementById("flash_start");
+    var endInput = document.getElementById("flash_end");
+    var dataElement = document.getElementById("flash_data");
+    var infoElement = document.getElementById("flash_info");
+    var restoreInfoElement = document.getElementById("flash_restore_info");
+    var backupInput = document.getElementById("flash_backup");
 
-    start && (start.oninput = function () { flashUpdateRangeHint(); flashRenderHexViews(); });
-    end && (end.oninput = flashUpdateRangeHint);
+    startInput && (startInput.oninput = function () { flashUpdateRangeHint(); flashRenderHexViews(); });
+    endInput && (endInput.oninput = flashUpdateRangeHint);
     flashUpdateRangeHint();
     flashRenderHexViews();
-
     flashSetStatus("");
 
-    if (data) {
-        data.addEventListener("input", function () { flashAlignInput(true); });
-        data.addEventListener("blur", function () { flashAlignInput(false); });
-        data.addEventListener("click", flashSnapCaret);
-        data.addEventListener("keyup", flashSnapCaret);
-        data.addEventListener("scroll", flashSyncScroll);
+    if (dataElement) {
+        dataElement.addEventListener("input", function () { flashAlignInput(true); });
+        dataElement.addEventListener("blur", function () { flashAlignInput(false); });
+        dataElement.addEventListener("click", flashSnapCaret);
+        dataElement.addEventListener("keyup", flashSnapCaret);
+        dataElement.addEventListener("scroll", flashSyncScroll);
     }
 
-    backup && (backup.onchange = function () {
-        var f = backup.files && backup.files.length ? backup.files[0] : null;
-        var d = f ? flashParseBackupFilename(f.name) : null;
-        if (!d) {
-            restoreInfo && (restoreInfo.textContent = t("flash.detected.none"));
-            return
+    backupInput && (backupInput.onchange = function () {
+        var selectedFile = backupInput.files && backupInput.files.length ? backupInput.files[0] : null;
+        var parsedBackup = selectedFile ? flashParseBackupFilename(selectedFile.name) : null;
+        if (!parsedBackup) {
+            restoreInfoElement && (restoreInfoElement.textContent = t("flash.detected.none"));
+            return;
         }
-        restoreInfo && (restoreInfo.textContent = d.storage + ":" + d.target + " 0x" + d.start.toString(16) + "-0x" + d.end.toString(16));
-        flashSelectTarget(d.storage + ":" + d.target);
-        start && (start.value = "0x" + d.start.toString(16));
-        end && (end.value = "0x" + d.end.toString(16));
+        restoreInfoElement && (restoreInfoElement.textContent = parsedBackup.storage + ":" + parsedBackup.target + " 0x" + parsedBackup.start.toString(16) + "-0x" + parsedBackup.end.toString(16));
+        flashSelectTarget(parsedBackup.storage + ":" + parsedBackup.target);
+        startInput && (startInput.value = "0x" + parsedBackup.start.toString(16));
+        endInput && (endInput.value = "0x" + parsedBackup.end.toString(16));
         flashUpdateRangeHint();
         flashRenderHexViews();
     });
 
     ajax({
         url: "/backup/info",
-        done: function (u) {
-            var r, e, o, s, f;
+        done: function (responseText) {
+            var backupInfo, infoParts, placeholderOption, rawOption;
             try {
-                r = JSON.parse(u)
-            } catch (h) {
+                backupInfo = JSON.parse(responseText);
+            } catch (error) {
                 flashSetStatus("backupinfo parse failed");
-                return
+                return;
             }
-            info && (o = [], r.mmc && r.mmc.present ? o.push("MMC: " + (r.mmc.vendor || "") + " " + (r.mmc.product || "")) : o.push("MMC: " + t("backup.storage.not_present")), r.mtd && r.mtd.present ? o.push("MTD: " + (r.mtd.model || "")) : o.push("MTD: " + t("backup.storage.not_present")), info.textContent = o.join(" | "));
-            if (!target) return;
-            target.options.length = 0;
-            s = document.createElement("option");
-            s.value = "";
-            s.dataset.i18nKey = "backup.target.placeholder";
-            target.appendChild(s);
-            r.mmc && r.mmc.present && (f = document.createElement("option"), f.value = "mmc:raw", f.textContent = "[MMC] raw", target.appendChild(f), r.mmc.parts && r.mmc.parts.length && r.mmc.parts.forEach(function (t) {
-                var i;
-                t && t.name && (i = document.createElement("option"), i.value = "mmc:" + t.name, i.textContent = "[MMC] " + t.name + (t.size ? " (" + bytesToHuman(t.size) + ")" : ""), target.appendChild(i))
-            }));
-            r.mtd && r.mtd.present && r.mtd.parts && r.mtd.parts.length && r.mtd.parts.forEach(function (t) {
-                var i;
-                t && t.name && (i = document.createElement("option"), i.value = "mtd:" + t.name, i.textContent = "[MTD] " + t.name + (t.size ? " (" + bytesToHuman(t.size) + ")" : ""), target.appendChild(i))
-            });
-            target.options.length > 1 && (target.selectedIndex = 1);
-            applyI18n(target)
+
+            if (infoElement) {
+                infoParts = [];
+                backupInfo.mmc && backupInfo.mmc.present ? infoParts.push("MMC: " + (backupInfo.mmc.vendor || "") + " " + (backupInfo.mmc.product || "")) : infoParts.push("MMC: " + t("backup.storage.not_present"));
+                backupInfo.mtd && backupInfo.mtd.present ? infoParts.push("MTD: " + (backupInfo.mtd.model || "")) : infoParts.push("MTD: " + t("backup.storage.not_present"));
+                infoElement.textContent = infoParts.join(" | ");
+            }
+
+            if (!targetSelect) return;
+            targetSelect.options.length = 0;
+            placeholderOption = document.createElement("option");
+            placeholderOption.value = "";
+            placeholderOption.dataset.i18nKey = "backup.target.placeholder";
+            targetSelect.appendChild(placeholderOption);
+
+            if (backupInfo.mmc && backupInfo.mmc.present) {
+                rawOption = document.createElement("option");
+                rawOption.value = "mmc:raw";
+                rawOption.textContent = "[MMC] raw";
+                targetSelect.appendChild(rawOption);
+                backupInfo.mmc.parts && backupInfo.mmc.parts.length && backupInfo.mmc.parts.forEach(function (partition) {
+                    var partitionOption;
+                    if (!partition || !partition.name) return;
+                    partitionOption = document.createElement("option");
+                    partitionOption.value = "mmc:" + partition.name;
+                    partitionOption.textContent = "[MMC] " + partition.name + (partition.size ? " (" + bytesToHuman(partition.size) + ")" : "");
+                    targetSelect.appendChild(partitionOption);
+                });
+            }
+
+            if (backupInfo.mtd && backupInfo.mtd.present && backupInfo.mtd.parts && backupInfo.mtd.parts.length) {
+                var mtdType = backupInfo.mtd.type;
+                var hasMasterPartitions = mtdType === 3 || mtdType === 4 || mtdType === 8;
+                var masterPartitions = [];
+
+                if (hasMasterPartitions) {
+                    backupInfo.mtd.parts.forEach(function (partition) {
+                        if (partition && partition.name && partition.master)
+                            masterPartitions.push(partition);
+                    });
+                }
+
+                hasMasterPartitions && masterPartitions.length && masterPartitions.forEach(function (partition) {
+                    var fullDiskOption = document.createElement("option");
+                    fullDiskOption.value = "mtd:" + partition.name;
+                    fullDiskOption.dataset.mtdName = partition.name;
+                    fullDiskOption.dataset.size = partition.size ? String(partition.size) : "";
+                    fullDiskOption.dataset.kind = "mtd-full";
+                    targetSelect.appendChild(fullDiskOption);
+                });
+
+                backupInfo.mtd.parts.forEach(function (partition) {
+                    var partitionOption;
+                    if (!partition || !partition.name) return;
+                    if (hasMasterPartitions && partition.master) return;
+                    partitionOption = document.createElement("option");
+                    partitionOption.value = "mtd:" + partition.name;
+                    partitionOption.textContent = "[MTD] " + partition.name + (partition.size ? " (" + bytesToHuman(partition.size) + ")" : "");
+                    partitionOption.dataset.kind = "mtd-part";
+                    targetSelect.appendChild(partitionOption);
+                });
+            }
+
+            targetSelect.options.length > 1 && (targetSelect.selectedIndex = 1);
+            backupRefreshI18n();
         }
-    })
+    });
 }
 
 async function flashRead() {
-    var target = document.getElementById("flash_target");
-    var start = document.getElementById("flash_start");
-    var end = document.getElementById("flash_end");
-    var data = document.getElementById("flash_data");
-    if (!target || !start || !end) return;
-    if (!target.value) {
+    var targetSelect = document.getElementById("flash_target");
+    var startInput = document.getElementById("flash_start");
+    var endInput = document.getElementById("flash_end");
+    var dataElement = document.getElementById("flash_data");
+    if (!targetSelect || !startInput || !endInput) return;
+    if (!targetSelect.value) {
         alert(t("flash.error.no_target"));
-        return
+        return;
     }
-    if (!start.value || !end.value) {
+    if (!startInput.value || !endInput.value) {
         alert(t("flash.error.bad_range"));
-        return
+        return;
     }
     try {
         flashSetStatus(t("flash.status.reading"));
-        var fd = new FormData();
-        fd.append("op", "read");
-        fd.append("storage", "auto");
-        fd.append("target", target.value);
-        fd.append("start", start.value);
-        fd.append("end", end.value);
-        var r = await fetch("/flash/read", { method: "POST", body: fd });
-        var txt = await r.text();
-        if (!r.ok) {
-            flashSetStatus(t("flash.status.http") + " " + r.status + (txt ? ": " + txt : ""));
-            return
+        var formData = new FormData();
+        formData.append("op", "read");
+        formData.append("storage", "auto");
+        formData.append("target", targetSelect.value);
+        formData.append("start", startInput.value);
+        formData.append("end", endInput.value);
+        var response = await fetch("/flash/read", { method: "POST", body: formData });
+        var responseText = await response.text();
+        if (!response.ok) {
+            flashSetStatus(t("flash.status.http") + " " + response.status + (responseText ? ": " + responseText : ""));
+            return;
         }
-        var j;
-        try { j = JSON.parse(txt); } catch (e) { flashSetStatus(t("flash.status.error") + " parse"); return; }
-        if (!j || !j.ok) {
-            flashSetStatus(t("flash.status.error") + " " + (j && j.error ? j.error : ""));
-            return
+        var payload;
+        try { payload = JSON.parse(responseText); } catch (error) { flashSetStatus(t("flash.status.error") + " parse"); return; }
+        if (!payload || !payload.ok) {
+            flashSetStatus(t("flash.status.error") + " " + (payload && payload.error ? payload.error : ""));
+            return;
         }
-        data && (data.value = j.data || "");
+        dataElement && (dataElement.value = payload.data || "");
         flashNormalizeHexInput();
-        flashSetStatus(t("flash.status.done"))
-    } catch (e) {
-        flashSetStatus(t("flash.status.error") + " " + (e && e.message ? e.message : String(e)))
+        flashSetStatus(t("flash.status.done"));
+    } catch (error) {
+        flashSetStatus(t("flash.status.error") + " " + (error && error.message ? error.message : String(error)));
     }
 }
 
 async function flashWrite() {
-    var target = document.getElementById("flash_target");
-    var start = document.getElementById("flash_start");
-    var data = document.getElementById("flash_data");
-    if (!target || !start || !data) return;
-    if (!target.value) {
+    var targetSelect = document.getElementById("flash_target");
+    var startInput = document.getElementById("flash_start");
+    var dataElement = document.getElementById("flash_data");
+    if (!targetSelect || !startInput || !dataElement) return;
+    if (!targetSelect.value) {
         alert(t("flash.error.no_target"));
-        return
+        return;
     }
-    if (!start.value) {
+    if (!startInput.value) {
         alert(t("flash.error.bad_range"));
-        return
+        return;
     }
-    if (!data.value || !data.value.trim()) {
+    if (!dataElement.value || !dataElement.value.trim()) {
         alert(t("flash.error.no_data"));
-        return
+        return;
     }
     if (!confirm(t("flash.confirm.write"))) return;
     try {
         flashSetStatus(t("flash.status.writing"));
-        var fd = new FormData();
-        fd.append("op", "write");
-        fd.append("storage", "auto");
-        fd.append("target", target.value);
-        fd.append("start", start.value);
-        fd.append("data", data.value);
-        var r = await fetch("/flash/write", { method: "POST", body: fd });
-        var txt = await r.text();
-        if (!r.ok) {
-            flashSetStatus(t("flash.status.http") + " " + r.status + (txt ? ": " + txt : ""));
-            return
+        var formData = new FormData();
+        formData.append("op", "write");
+        formData.append("storage", "auto");
+        formData.append("target", targetSelect.value);
+        formData.append("start", startInput.value);
+        formData.append("data", dataElement.value);
+        var response = await fetch("/flash/write", { method: "POST", body: formData });
+        var responseText = await response.text();
+        if (!response.ok) {
+            flashSetStatus(t("flash.status.http") + " " + response.status + (responseText ? ": " + responseText : ""));
+            return;
         }
-        var j;
-        try { j = JSON.parse(txt); } catch (e) { flashSetStatus(t("flash.status.error") + " parse"); return; }
-        if (!j || !j.ok) {
-            flashSetStatus(t("flash.status.error") + " " + (j && j.error ? j.error : ""));
-            return
+        var payload;
+        try { payload = JSON.parse(responseText); } catch (error) { flashSetStatus(t("flash.status.error") + " parse"); return; }
+        if (!payload || !payload.ok) {
+            flashSetStatus(t("flash.status.error") + " " + (payload && payload.error ? payload.error : ""));
+            return;
         }
-        flashSetStatus(t("flash.status.done"))
-    } catch (e) {
-        flashSetStatus(t("flash.status.error") + " " + (e && e.message ? e.message : String(e)))
+        flashSetStatus(t("flash.status.done"));
+    } catch (error) {
+        flashSetStatus(t("flash.status.error") + " " + (error && error.message ? error.message : String(error)));
     }
 }
 
 async function flashErase() {
-    var plan = flashBuildErasePlan();
-    var fd, r, txt, j;
-
-    if (plan.error) {
-        alert(plan.error);
+    var erasePlan = flashBuildErasePlan();
+    if (erasePlan.error) {
+        alert(erasePlan.error);
         return;
     }
-
-    if (!confirm(t("flash.confirm.erase")))
-        return;
-
-    var confirmDetail = t("flash.confirm.erase_detail")
-        .replace("{device}", plan.deviceName)
-        .replace("{detail}", plan.detail);
-
-    if (!confirm(confirmDetail))
-        return;
-
+    if (!confirm(t("flash.confirm.erase"))) return;
+    var confirmDetail = t("flash.confirm.erase_detail").replace("{device}", erasePlan.deviceName).replace("{detail}", erasePlan.detail);
+    if (!confirm(confirmDetail)) return;
     try {
         flashSetStatus(t("flash.status.erasing"));
-        fd = new FormData();
-        fd.append("op", "erase");
-        fd.append("storage", "auto");
-        fd.append("target", plan.target);
-        if (plan.hasRange) {
-            fd.append("start", "0x" + plan.start.toString(16));
-            fd.append("end", "0x" + plan.end.toString(16));
+        var formData = new FormData();
+        formData.append("op", "erase");
+        formData.append("storage", "auto");
+        formData.append("target", erasePlan.target);
+        if (erasePlan.hasRange) {
+            formData.append("start", "0x" + erasePlan.start.toString(16));
+            formData.append("end", "0x" + erasePlan.end.toString(16));
         }
-
-        r = await fetch("/flash/erase", { method: "POST", body: fd });
-        txt = await r.text();
-        if (!r.ok) {
-            flashSetStatus(t("flash.status.http") + " " + r.status + (txt ? ": " + txt : ""));
+        var response = await fetch("/flash/erase", { method: "POST", body: formData });
+        var responseText = await response.text();
+        if (!response.ok) {
+            flashSetStatus(t("flash.status.http") + " " + response.status + (responseText ? ": " + responseText : ""));
             return;
         }
-
-        try { j = JSON.parse(txt); } catch (e) {
-            flashSetStatus(t("flash.status.error") + " parse");
+        var payload;
+        try { payload = JSON.parse(responseText); } catch (error) { flashSetStatus(t("flash.status.error") + " parse"); return; }
+        if (!payload || !payload.ok) {
+            flashSetStatus(t("flash.status.error") + " " + (payload && payload.error ? payload.error : ""));
             return;
         }
-
-        if (!j || !j.ok) {
-            flashSetStatus(t("flash.status.error") + " " + (j && j.error ? j.error : ""));
-            return;
-        }
-
         flashSetStatus(t("flash.status.done"));
-    } catch (e) {
-        flashSetStatus(t("flash.status.error") + " " + (e && e.message ? e.message : String(e)));
+    } catch (error) {
+        flashSetStatus(t("flash.status.error") + " " + (error && error.message ? error.message : String(error)));
     }
 }
 
 async function flashRestore() {
-    var target = document.getElementById("flash_target");
-    var start = document.getElementById("flash_start");
-    var end = document.getElementById("flash_end");
-    var backup = document.getElementById("flash_backup");
-    var file, baseStart, baseEnd, totalSize;
+    var targetSelect = document.getElementById("flash_target");
+    var startInput = document.getElementById("flash_start");
+    var endInput = document.getElementById("flash_end");
+    var backupInput = document.getElementById("flash_backup");
+    var backupFile, baseStart, baseEnd, totalSize;
     var chunkSize = 4 * 1024 * 1024;
     var useChunked;
 
@@ -1636,13 +1682,13 @@ async function flashRestore() {
 
     async function sendChunk(blob, chunkOffset, chunkEnd, totalSize, baseStart) {
         return await new Promise(function (resolve, reject) {
-            var fd = new FormData();
-            fd.append("op", "restore");
-            fd.append("backup", blob, "restore_chunk.bin");
-            target && target.value && fd.append("target", target.value);
-            fd.append("start", toHex(baseStart + chunkOffset));
-            fd.append("end", toHex(baseStart + chunkEnd));
-            fd.append("storage", "auto");
+            var formData = new FormData();
+            formData.append("op", "restore");
+            formData.append("backup", blob, "restore_chunk.bin");
+            targetSelect && targetSelect.value && formData.append("target", targetSelect.value);
+            formData.append("start", toHex(baseStart + chunkOffset));
+            formData.append("end", toHex(baseStart + chunkEnd));
+            formData.append("storage", "auto");
 
             var xhr = new XMLHttpRequest();
             xhr.upload.onprogress = function (evt) {
@@ -1661,47 +1707,47 @@ async function flashRestore() {
                     reject(new Error("http"));
                     return;
                 }
-                var j;
-                try { j = JSON.parse(xhr.responseText); } catch (e) {
+                var payload;
+                try { payload = JSON.parse(xhr.responseText); } catch (error) {
                     flashSetStatus(t("flash.status.error") + " parse");
                     flashSetProgress(null);
-                    reject(e);
+                    reject(error);
                     return;
                 }
-                if (!j || !j.ok) {
-                    flashSetStatus(t("flash.status.error") + " " + (j && j.error ? j.error : ""));
+                if (!payload || !payload.ok) {
+                    flashSetStatus(t("flash.status.error") + " " + (payload && payload.error ? payload.error : ""));
                     flashSetProgress(null);
                     reject(new Error("bad"));
                     return;
                 }
-                if (j.alert)
-                    window.__flash_restore_alert = j.alert;
+                if (payload.alert)
+                    window.__flash_restore_alert = payload.alert;
                 resolve();
             };
             xhr.open("POST", "/flash/restore");
-            xhr.send(fd);
+            xhr.send(formData);
         });
     }
 
-    if (!backup || !backup.files || !backup.files.length) {
+    if (!backupInput || !backupInput.files || !backupInput.files.length) {
         alert(t("flash.error.no_file"));
-        return
+        return;
     }
     if (!confirm(t("flash.confirm.restore"))) return;
     try {
-        file = backup.files[0];
-        totalSize = file ? file.size : 0;
-        baseStart = start ? parseUserLen(start.value) : null;
-        baseEnd = end ? parseUserLen(end.value) : null;
-        if ((baseStart === null || baseEnd === null) && file && file.name) {
-            var parsed = flashParseBackupFilename(file.name);
-            if (parsed) {
-                baseStart = parsed.start;
-                baseEnd = parsed.end;
-                if (target && !target.value && parsed.storage && parsed.target)
-                    flashSelectTarget(parsed.storage + ":" + parsed.target);
-                start && (start.value = toHex(baseStart));
-                end && (end.value = toHex(baseEnd));
+        backupFile = backupInput.files[0];
+        totalSize = backupFile ? backupFile.size : 0;
+        baseStart = startInput ? parseUserLen(startInput.value) : null;
+        baseEnd = endInput ? parseUserLen(endInput.value) : null;
+        if ((baseStart === null || baseEnd === null) && backupFile && backupFile.name) {
+            var parsedBackup = flashParseBackupFilename(backupFile.name);
+            if (parsedBackup) {
+                baseStart = parsedBackup.start;
+                baseEnd = parsedBackup.end;
+                if (targetSelect && !targetSelect.value && parsedBackup.storage && parsedBackup.target)
+                    flashSelectTarget(parsedBackup.storage + ":" + parsedBackup.target);
+                startInput && (startInput.value = toHex(baseStart));
+                endInput && (endInput.value = toHex(baseEnd));
             }
         }
         if (baseStart === null || baseEnd === null || baseEnd <= baseStart) {
@@ -1718,12 +1764,12 @@ async function flashRestore() {
         flashSetStatus(t("flash.status.uploading"));
 
         if (!useChunked) {
-            await sendChunk(file, 0, totalSize, totalSize, baseStart);
+            await sendChunk(backupFile, 0, totalSize, totalSize, baseStart);
         } else {
             var offset = 0;
             while (offset < totalSize) {
                 var next = Math.min(offset + chunkSize, totalSize);
-                var blob = file.slice(offset, next);
+                var blob = backupFile.slice(offset, next);
                 await sendChunk(blob, offset, next, totalSize, baseStart);
                 offset = next;
             }
@@ -1733,115 +1779,115 @@ async function flashRestore() {
         flashSetStatus(t("flash.status.done"));
         alert(t("flash.status.restored", window.__flash_restore_alert || "Backup restore completed."));
         window.__flash_restore_alert = "";
-    } catch (e) {
-        flashSetStatus(t("flash.status.error") + " " + (e && e.message ? e.message : String(e)))
+    } catch (error) {
+        flashSetStatus(t("flash.status.error") + " " + (error && error.message ? error.message : String(error)));
     }
 }
 
-function setBackupStatus(n) {
-    var t = document.getElementById("backup_status");
-    t && (t.style.display = n ? "block" : "none", t.textContent = n || "")
+function setBackupStatus(message) {
+    var statusElement = document.getElementById("backup_status");
+    statusElement && (statusElement.style.display = message ? "block" : "none", statusElement.textContent = message || "")
 }
 
-function setBackupProgress(n) {
-    var t = document.getElementById("bar"), i;
-    t && (i = Math.max(0, Math.min(100, parseInt(n || 0))), t.style.display = "block", t.style.setProperty("--percent", i))
+function setBackupProgress(percent) {
+    var progressElement = document.getElementById("bar"), boundedPercent;
+    progressElement && (boundedPercent = Math.max(0, Math.min(100, parseInt(percent || 0))), progressElement.style.display = "block", progressElement.style.setProperty("--percent", boundedPercent))
 }
 
 function backupUpdateRangeHint() {
-    var u = document.getElementById("backup_range_hint"), n, i, r;
-    u && (n = parseUserLen(document.getElementById("backup_start").value), i = parseUserLen(document.getElementById("backup_end").value), n === null || i === null ? u.textContent = t("backup.range.hint") : (r = i >= n ? i - n : 0, u.textContent = "Start=" + bytesToHuman(n) + ", End=" + bytesToHuman(i) + ", Size=" + bytesToHuman(r)))
+    var rangeHintElement = document.getElementById("backup_range_hint"), startValue, endValue, rangeSize;
+    rangeHintElement && (startValue = parseUserLen(document.getElementById("backup_start").value), endValue = parseUserLen(document.getElementById("backup_end").value), startValue === null || endValue === null ? rangeHintElement.textContent = t("backup.range.hint") : (rangeSize = endValue >= startValue ? endValue - startValue : 0, rangeHintElement.textContent = "Start=" + bytesToHuman(startValue) + ", End=" + bytesToHuman(endValue) + ", Size=" + bytesToHuman(rangeSize)))
 }
 
 function backupRefreshI18n() {
-    var n = document.getElementById("backup_target"), t, r, u;
-    if (!n) return;
-    for (t = 0; t < n.options.length; t++) r = n.options[t], r && r.dataset && r.dataset.i18nKey && (r.textContent = window.t(r.dataset.i18nKey));
-    for (t = 0; t < n.options.length; t++) {
-        r = n.options[t];
-        if (!r || !r.dataset) continue;
-        r.dataset.kind === "mtd-full" && (u = r.dataset.mtdName || "", r.textContent = "[MTD] " + window.t("backup.target.full_disk") + (u ? " (" + u + ")" : "") + (r.dataset.size ? " (" + bytesToHuman(parseInt(r.dataset.size, 10)) + ")" : ""))
+    var targetSelect = document.getElementById("backup_target"), optionIndex, optionElement, mtdName;
+    if (!targetSelect) return;
+    for (optionIndex = 0; optionIndex < targetSelect.options.length; optionIndex++) optionElement = targetSelect.options[optionIndex], optionElement && optionElement.dataset && optionElement.dataset.i18nKey && (optionElement.textContent = window.t(optionElement.dataset.i18nKey));
+    for (optionIndex = 0; optionIndex < targetSelect.options.length; optionIndex++) {
+        optionElement = targetSelect.options[optionIndex];
+        if (!optionElement || !optionElement.dataset) continue;
+        optionElement.dataset.kind === "mtd-full" && (mtdName = optionElement.dataset.mtdName || "", optionElement.textContent = "[MTD] " + window.t("backup.target.full_disk") + (mtdName ? " (" + mtdName + ")" : "") + (optionElement.dataset.size ? " (" + bytesToHuman(parseInt(optionElement.dataset.size, 10)) + ")" : ""))
     }
 }
 
 function backupInit() {
-    var u = document.getElementById("backup_mode"), r = document.getElementById("backup_range"), n = document.getElementById("backup_target"), s = document.getElementById("backup_target_field"), c = document.getElementById("backup_mode_target_row"), updateBackupUi, f, e;
-    function o(t) {
-        for (var i = 0; i < n.options.length; i++) if (n.options[i].value === t) return n.selectedIndex = i, true;
+    var modeSelect = document.getElementById("backup_mode"), rangeContainer = document.getElementById("backup_range"), targetSelect = document.getElementById("backup_target"), targetField = document.getElementById("backup_target_field"), targetRow = document.getElementById("backup_mode_target_row"), updateBackupUi, startInput, endInput;
+    function selectTargetByValue(targetValue) {
+        for (var optionIndex = 0; optionIndex < targetSelect.options.length; optionIndex++) if (targetSelect.options[optionIndex].value === targetValue) return targetSelect.selectedIndex = optionIndex, true;
         return false
     }
-    function h(t) {
-        for (var i = 0; i < n.options.length; i++) if (n.options[i].dataset && n.options[i].dataset.kind === t) return n.selectedIndex = i, true;
+    function selectTargetByKind(targetKind) {
+        for (var optionIndex = 0; optionIndex < targetSelect.options.length; optionIndex++) if (targetSelect.options[optionIndex].dataset && targetSelect.options[optionIndex].dataset.kind === targetKind) return targetSelect.selectedIndex = optionIndex, true;
         return false
     }
-    function l() {
-        for (var t = 0; t < n.options.length; t++) if (n.options[t].value) {
-            n.selectedIndex = t;
+    function selectFirstNonEmptyTarget() {
+        for (var optionIndex = 0; optionIndex < targetSelect.options.length; optionIndex++) if (targetSelect.options[optionIndex].value) {
+            targetSelect.selectedIndex = optionIndex;
             return true
         }
         return false
     }
-    function a() {
-        var t, i;
-        if (!n || n.options.length <= 1) return;
-        t = n.options[n.selectedIndex];
-        i = t && t.dataset ? t.dataset.kind : "";
-        (i === "mmc-part" || i === "mtd-part" || !n.value) && (o("mmc:raw") || h("mtd-full") || l())
+    function ensureValidTargetSelection() {
+        var selectedOption, selectedKind;
+        if (!targetSelect || targetSelect.options.length <= 1) return;
+        selectedOption = targetSelect.options[targetSelect.selectedIndex];
+        selectedKind = selectedOption && selectedOption.dataset ? selectedOption.dataset.kind : "";
+        (selectedKind === "mmc-part" || selectedKind === "mtd-part" || !targetSelect.value) && (selectTargetByValue("mmc:raw") || selectTargetByKind("mtd-full") || selectFirstNonEmptyTarget())
     }
-    u && r && n && (updateBackupUi = function () {
-        var t = u.value === "range";
-        t ? (r.style.display = "block", a(), backupUpdateRangeHint()) : (r.style.display = "none");
-        s && (s.style.display = t ? "none" : "");
-        c && (c.style.gridTemplateColumns = t ? "1fr" : "")
-    }, u.onchange = updateBackupUi, f = document.getElementById("backup_start"), e = document.getElementById("backup_end"), f && (f.oninput = backupUpdateRangeHint), e && (e.oninput = backupUpdateRangeHint), updateBackupUi(), setBackupStatus(""), ajax({
+    modeSelect && rangeContainer && targetSelect && (updateBackupUi = function () {
+        var isRangeMode = modeSelect.value === "range";
+        isRangeMode ? (rangeContainer.style.display = "block", ensureValidTargetSelection(), backupUpdateRangeHint()) : (rangeContainer.style.display = "none");
+        targetField && (targetField.style.display = isRangeMode ? "none" : "");
+        targetRow && (targetRow.style.gridTemplateColumns = isRangeMode ? "1fr" : "")
+    }, modeSelect.onchange = updateBackupUi, startInput = document.getElementById("backup_start"), endInput = document.getElementById("backup_end"), startInput && (startInput.oninput = backupUpdateRangeHint), endInput && (endInput.oninput = backupUpdateRangeHint), updateBackupUi(), setBackupStatus(""), ajax({
         url: "/backup/info",
-        done: function (u) {
-            var r, e, o, s, f;
+        done: function (responseText) {
+            var backupInfo, infoElement, optionElement, rawOption, fullDiskOption;
             try {
-                r = JSON.parse(u)
-            } catch (h) {
+                backupInfo = JSON.parse(responseText)
+            } catch (error) {
                 setBackupStatus("backupinfo parse failed");
                 return
             }
-            e = document.getElementById("backup_info");
-            e && (o = [], r.mmc && r.mmc.present ? o.push("MMC: " + (r.mmc.vendor || "") + " " + (r.mmc.product || "")) : o.push("MMC: " + t("backup.storage.not_present")), r.mtd && r.mtd.present ? o.push("MTD: " + (r.mtd.model || "")) : o.push("MTD: " + t("backup.storage.not_present")), e.textContent = o.join(" | "));
-            n.options.length = 0;
-            s = document.createElement("option");
-            s.value = "";
-            s.dataset.i18nKey = "backup.target.placeholder";
-            n.appendChild(s);
-            r.mmc && r.mmc.present && (f = document.createElement("option"), f.value = "mmc:raw", f.textContent = "[MMC] raw", f.dataset.kind = "mmc-raw", n.appendChild(f), r.mmc.parts && r.mmc.parts.length && r.mmc.parts.forEach(function (t) {
-                var i;
-                t && t.name && (i = document.createElement("option"), i.value = "mmc:" + t.name, i.textContent = "[MMC] " + t.name + (t.size ? " (" + bytesToHuman(t.size) + ")" : ""), i.dataset.kind = "mmc-part", n.appendChild(i))
+            infoElement = document.getElementById("backup_info");
+            infoElement && (optionElement = [], backupInfo.mmc && backupInfo.mmc.present ? optionElement.push("MMC: " + (backupInfo.mmc.vendor || "") + " " + (backupInfo.mmc.product || "")) : optionElement.push("MMC: " + t("backup.storage.not_present")), backupInfo.mtd && backupInfo.mtd.present ? optionElement.push("MTD: " + (backupInfo.mtd.model || "")) : optionElement.push("MTD: " + t("backup.storage.not_present")), infoElement.textContent = optionElement.join(" | "));
+            targetSelect.options.length = 0;
+            optionElement = document.createElement("option");
+            optionElement.value = "";
+            optionElement.dataset.i18nKey = "backup.target.placeholder";
+            targetSelect.appendChild(optionElement);
+            backupInfo.mmc && backupInfo.mmc.present && (rawOption = document.createElement("option"), rawOption.value = "mmc:raw", rawOption.textContent = "[MMC] raw", rawOption.dataset.kind = "mmc-raw", targetSelect.appendChild(rawOption), backupInfo.mmc.parts && backupInfo.mmc.parts.length && backupInfo.mmc.parts.forEach(function (partition) {
+                var partOption;
+                partition && partition.name && (partOption = document.createElement("option"), partOption.value = "mmc:" + partition.name, partOption.textContent = "[MMC] " + partition.name + (partition.size ? " (" + bytesToHuman(partition.size) + ")" : ""), partOption.dataset.kind = "mmc-part", targetSelect.appendChild(partOption))
             }));
 
-            if (r.mtd && r.mtd.present && r.mtd.parts && r.mtd.parts.length) {
-                var c = r.mtd.type, l = c === 3 || c === 4 || c === 8, a = [];
-                l && r.mtd.parts.forEach(function (n) {
-                    n && n.name && n.master && a.push(n)
+            if (backupInfo.mtd && backupInfo.mtd.present && backupInfo.mtd.parts && backupInfo.mtd.parts.length) {
+                var mtdType = backupInfo.mtd.type, hasMasterPartitions = mtdType === 3 || mtdType === 4 || mtdType === 8, masterPartitions = [];
+                hasMasterPartitions && backupInfo.mtd.parts.forEach(function (partition) {
+                    partition && partition.name && partition.master && masterPartitions.push(partition)
                 });
 
-                l && a.length && a.forEach(function (p) {
-                    var i = document.createElement("option");
-                    i.value = "mtd:" + p.name;
-                    i.dataset.mtdName = p.name;
-                    i.dataset.size = p.size ? String(p.size) : "";
-                    i.dataset.kind = "mtd-full";
-                    n.appendChild(i)
+                hasMasterPartitions && masterPartitions.length && masterPartitions.forEach(function (partition) {
+                    var fullDiskOptionElement = document.createElement("option");
+                    fullDiskOptionElement.value = "mtd:" + partition.name;
+                    fullDiskOptionElement.dataset.mtdName = partition.name;
+                    fullDiskOptionElement.dataset.size = partition.size ? String(partition.size) : "";
+                    fullDiskOptionElement.dataset.kind = "mtd-full";
+                    targetSelect.appendChild(fullDiskOptionElement)
                 });
 
-                r.mtd.parts.forEach(function (t) {
-                    var i;
-                    if (!t || !t.name) return;
-                    if (l && t.master) return;
-                    i = document.createElement("option");
-                    i.value = "mtd:" + t.name;
-                    i.textContent = "[MTD] " + t.name + (t.size ? " (" + bytesToHuman(t.size) + ")" : "");
-                    i.dataset.kind = "mtd-part";
-                    n.appendChild(i)
+                backupInfo.mtd.parts.forEach(function (partition) {
+                    var partitionOption;
+                    if (!partition || !partition.name) return;
+                    if (hasMasterPartitions && partition.master) return;
+                    partitionOption = document.createElement("option");
+                    partitionOption.value = "mtd:" + partition.name;
+                    partitionOption.textContent = "[MTD] " + partition.name + (partition.size ? " (" + bytesToHuman(partition.size) + ")" : "");
+                    partitionOption.dataset.kind = "mtd-part";
+                    targetSelect.appendChild(partitionOption)
                 })
             }
-            n.options.length > 1 && (n.selectedIndex = 1);
+            targetSelect.options.length > 1 && (targetSelect.selectedIndex = 1);
             backupRefreshI18n();
             updateBackupUi && updateBackupUi()
         }
@@ -1849,81 +1895,81 @@ function backupInit() {
 }
 
 async function startBackup() {
-    var u = document.getElementById("backup_mode"), f = document.getElementById("backup_target"), i, r, e, o, s, h, c, l, a, v, y, p, w, b, k;
-    if (!u || !f) return;
-    if (i = u.value, r = f.value, !r) {
+    var modeSelect = document.getElementById("backup_mode"), targetSelect = document.getElementById("backup_target"), backupMode, targetValue, formData, response, contentLength, expectedLength, downloadName, downloadedBytes, saveHandle, writableStream, reader, chunk, bufferedChunks;
+    if (!modeSelect || !targetSelect) return;
+    if (backupMode = modeSelect.value, targetValue = targetSelect.value, !targetValue) {
         alert(t("backup.error.no_target"));
         return
     }
-    e = new FormData;
-    e.append("mode", i);
-    e.append("storage", "auto");
-    e.append("target", r);
-    if (i === "range") {
-        o = document.getElementById("backup_start");
-        s = document.getElementById("backup_end");
-        if (!o || !s || !o.value || !s.value) {
+    formData = new FormData;
+    formData.append("mode", backupMode);
+    formData.append("storage", "auto");
+    formData.append("target", targetValue);
+    if (backupMode === "range") {
+        var startInput = document.getElementById("backup_start");
+        var endInput = document.getElementById("backup_end");
+        if (!startInput || !endInput || !startInput.value || !endInput.value) {
             alert(t("backup.error.bad_range"));
             return
         }
-        e.append("start", o.value);
-        e.append("end", s.value)
+        formData.append("start", startInput.value);
+        formData.append("end", endInput.value)
     }
     setBackupProgress(0);
     setBackupStatus(t("backup.status.starting"));
     try {
-        h = await fetch("/backup/main", { method: "POST", body: e });
-        if (!h.ok) {
-            setBackupStatus(t("backup.error.http") + " " + h.status);
+        response = await fetch("/backup/main", { method: "POST", body: formData });
+        if (!response.ok) {
+            setBackupStatus(t("backup.error.http") + " " + response.status);
             return
         }
-        c = h.headers.get("Content-Length");
-        l = c ? parseInt(c, 10) : 0;
-        a = parseFilenameFromDisposition(h.headers.get("Content-Disposition"));
-        a || (a = "backup.bin");
+        contentLength = response.headers.get("Content-Length");
+        expectedLength = contentLength ? parseInt(contentLength, 10) : 0;
+        downloadName = parseFilenameFromDisposition(response.headers.get("Content-Disposition"));
+        downloadName || (downloadName = "backup.bin");
         // Ensure we have board info for filename even on pages without #sysinfo
         await ensureSysInfoLoaded();
-        a = makeBackupDownloadName(a);
-        v = 0;
+        downloadName = makeBackupDownloadName(downloadName);
+        downloadedBytes = 0;
         if (window.showSaveFilePicker) {
-            y = await window.showSaveFilePicker({ suggestedName: a, types: [{ description: "Binary", accept: { "application/octet-stream": [".bin"] } }] });
-            p = await y.createWritable();
-            w = h.body.getReader();
+            saveHandle = await window.showSaveFilePicker({ suggestedName: downloadName, types: [{ description: "Binary", accept: { "application/octet-stream": [".bin"] } }] });
+            writableStream = await saveHandle.createWritable();
+            reader = response.body.getReader();
             while (true) {
-                b = await w.read();
-                if (b.done) break;
-                await p.write(b.value);
-                v += b.value.length;
-                l ? setBackupProgress(v / l * 100) : setBackupProgress(0);
-                setBackupStatus(t("backup.status.downloading") + " " + bytesToHuman(v) + (l ? " / " + bytesToHuman(l) : ""))
+                chunk = await reader.read();
+                if (chunk.done) break;
+                await writableStream.write(chunk.value);
+                downloadedBytes += chunk.value.length;
+                expectedLength ? setBackupProgress(downloadedBytes / expectedLength * 100) : setBackupProgress(0);
+                setBackupStatus(t("backup.status.downloading") + " " + bytesToHuman(downloadedBytes) + (expectedLength ? " / " + bytesToHuman(expectedLength) : ""))
             }
-            await p.close();
+            await writableStream.close();
             setBackupProgress(100);
-            setBackupStatus(t("backup.status.done") + " " + a)
+            setBackupStatus(t("backup.status.done") + " " + downloadName)
         } else {
-            k = [];
-            w = h.body.getReader();
+            bufferedChunks = [];
+            reader = response.body.getReader();
             while (true) {
-                b = await w.read();
-                if (b.done) break;
-                k.push(b.value);
-                v += b.value.length;
-                l ? setBackupProgress(v / l * 100) : setBackupProgress(0);
-                setBackupStatus(t("backup.status.downloading") + " " + bytesToHuman(v) + (l ? " / " + bytesToHuman(l) : ""))
+                chunk = await reader.read();
+                if (chunk.done) break;
+                bufferedChunks.push(chunk.value);
+                downloadedBytes += chunk.value.length;
+                expectedLength ? setBackupProgress(downloadedBytes / expectedLength * 100) : setBackupProgress(0);
+                setBackupStatus(t("backup.status.downloading") + " " + bytesToHuman(downloadedBytes) + (expectedLength ? " / " + bytesToHuman(expectedLength) : ""))
             }
             setBackupProgress(100);
             setBackupStatus(t("backup.status.preparing"));
-            p = new Blob(k, { type: "application/octet-stream" });
-            y = document.createElement("a");
-            y.href = URL.createObjectURL(p);
-            y.download = a;
-            document.body.appendChild(y);
-            y.click();
-            document.body.removeChild(y);
-            setBackupStatus(t("backup.status.done") + " " + a)
+            var backupBlob = new Blob(bufferedChunks, { type: "application/octet-stream" });
+            var downloadLink = document.createElement("a");
+            downloadLink.href = URL.createObjectURL(backupBlob);
+            downloadLink.download = downloadName;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+            setBackupStatus(t("backup.status.done") + " " + downloadName)
         }
-    } catch (d) {
-        setBackupStatus(t("backup.error.exception") + " " + (d && d.message ? d.message : String(d)))
+    } catch (error) {
+        setBackupStatus(t("backup.error.exception") + " " + (error && error.message ? error.message : String(error)))
     }
 }
 
