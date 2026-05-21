@@ -61,6 +61,10 @@ obj-y += reboot.o
 FILE_reboot.o := reboot.html
 FSPATH_reboot.o := reboot.html
 
+obj-$(CONFIG_WEBUI_FAILSAFE_ENV) += settings.o
+FILE_settings.o := settings.html
+FSPATH_settings.o := settings.html
+
 obj-$(CONFIG_WEBUI_FAILSAFE_SIMG) += simg.o
 FILE_simg.o := simg.html
 FSPATH_simg.o := simg.html
@@ -100,6 +104,10 @@ FSPATH_i18n.o := i18n.js
 obj-y += main.o
 FILE_main.o := main.js
 FSPATH_main.o := main.js
+
+obj-$(CONFIG_WEBUI_FAILSAFE_ENV) += settings_js.o
+FILE_settings_js.o := settings_js.js
+FSPATH_settings_js.o := settings_js.js
 
 obj-y += theme.o
 FILE_theme.o := theme.js

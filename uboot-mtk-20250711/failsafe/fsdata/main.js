@@ -511,12 +511,16 @@ function ensureSidebar() {
     themeRow.appendChild(themeSelect);
     controlsContainer.appendChild(themeRow);
 
-    appendAccentControls(controlsContainer);
     sidebar.appendChild(controlsContainer);
 
     // Navigation
     const navContainer = document.createElement("div");
     navContainer.className = "nav";
+
+    // Settings (placed before Basic section)
+    const settingsLink = createNavLink("/settings.html", "nav.settings", "settings");
+    settingsLink.style.display = "none";
+    navContainer.appendChild(settingsLink);
 
     // Basic section
     const basicSection = document.createElement("div");
@@ -569,6 +573,7 @@ function ensureSidebar() {
     applyI18n(sidebar);
     updateGptNavVisibility();
     updateSimgNavVisibility();
+    updateSettingsNavVisibility();
     attachSidebarScrollPersistence(navContainer);
 }
 
@@ -678,6 +683,7 @@ function appInit(pageName) {
     pageName === "flash" && typeof flashInit === "function" && flashInit();
     pageName === "console" && typeof consoleInit === "function" && consoleInit();
     pageName === "env" && typeof envInit === "function" && envInit()
+    pageName === "settings" && typeof settingsInit === "function" && settingsInit();
 
     const Yuzhii_VERSION = 'UBOOT-MTK-20250711';
     const Yuzhii_LINK = 'https://github.com/Yuzhii0718/';
@@ -696,6 +702,35 @@ function updateGptNavVisibility() {
     }
     gptNavLink.style.display = mmcPresent === false ? "none" : "";
     console.warn("GPT nav visibility updated based on MMC presence:", mmcPresent);
+}
+
+function ensureSidebarAccentFallback() {
+    const controlsContainer = document.querySelector("#sidebar .sidebar-controls");
+    if (!controlsContainer || controlsContainer.querySelector(".control-row-color")) return;
+    appendAccentControls(controlsContainer);
+    applyI18n(controlsContainer);
+}
+
+function updateSettingsNavVisibility() {
+    const settingsNavLink = document.querySelector("#sidebar [data-nav-id='settings']");
+    if (!settingsNavLink) return;
+
+    if (APP_STATE._settings_probe_done) return;
+    APP_STATE._settings_probe_done = true;
+
+    fetch("/settings.html?_probe=1", { method: "GET", cache: "no-store" })
+        .then((response) => {
+            if (response?.ok) {
+                settingsNavLink.style.display = "";
+                return;
+            }
+            settingsNavLink.style.display = "none";
+            ensureSidebarAccentFallback();
+        })
+        .catch(() => {
+            settingsNavLink.style.display = "none";
+            ensureSidebarAccentFallback();
+        });
 }
 
 function updateSimgNavVisibility() {

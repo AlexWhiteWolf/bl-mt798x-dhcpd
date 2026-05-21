@@ -1554,6 +1554,60 @@ html[data-theme="dark"] .console-output {
     color: var(--muted);
 }
 
+/* ── Settings page ─────────────────────────────────────────────── */
+.settings-page {
+    width: min(640px, 100%);
+    margin: 0 auto;
+    display: grid;
+    gap: var(--sp-lg);
+    text-align: left;
+}
+
+.settings-section {
+    display: grid;
+    gap: 10px;
+    padding: var(--sp-md) var(--sp-md);
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+}
+
+.settings-heading {
+    margin: 0 0 4px;
+    font-size: 0.9rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 700;
+}
+
+.settings-help {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.settings-status {
+    margin-top: 6px;
+    text-align: center;
+}
+
+.settings-accent-host {
+    display: block;
+}
+
+.settings-accent-host .control-row {
+    grid-template-columns: 110px 1fr;
+    color: var(--text);
+    font-size: 0.85rem;
+}
+
+.settings-accent-host .color-inputs input[type="text"] {
+    font-size: 0.85rem;
+}
+
 /* ── Reboot page ───────────────────────────────────────────────── */
 body[data-page="reboot"] #m {
     min-height: auto;

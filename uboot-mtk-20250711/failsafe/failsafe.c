@@ -868,6 +868,7 @@ static const char *select_js_file(const char *uri)
 		"console_js.js",
 		"env_js.js",
 		"flash_js.js",
+		"settings_js.js",
 		NULL
 	};
 	const char *basename;
@@ -1048,6 +1049,8 @@ int start_web_failsafe(void)
 #endif
 #ifdef CONFIG_WEBUI_FAILSAFE_UI_NEW
 	httpd_register_uri_handler(inst, "/favicon.svg", &picture_handler, NULL);
+	httpd_register_uri_handler(inst, "/settings.html", &html_handler, NULL);
+	httpd_register_uri_handler(inst, "/settings_js.js", &js_handler, NULL);
 	httpd_register_uri_handler(inst, "/theme.js", &js_handler, NULL);
 	httpd_register_uri_handler(inst, "/theme/get", &theme_get_handler, NULL);
 	httpd_register_uri_handler(inst, "/theme/set", &theme_set_handler, NULL);
