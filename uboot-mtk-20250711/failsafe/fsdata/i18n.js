@@ -344,7 +344,7 @@ const I18N = {
         "backup.warn.3": "大容量备份可能耗时较长，取决于存储速度",
         "backup.storage.not_present": "未检测到",
         "backup.target.placeholder": "-- 请选择 --",
-        "backup.target.full_disk": "全盘备份",
+        "backup.target.full_disk": "整个闪存",
         "backup.range.hint": "提示：支持十进制、0x 十六进制，以及 KiB 后缀（例如 4KiB）。",
         "backup.status.starting": "开始中…",
         "backup.status.downloading": "下载中：",
