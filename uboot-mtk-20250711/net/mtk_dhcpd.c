@@ -117,6 +117,11 @@ static bool dhcpd_is_verbose(void)
 static struct in_addr dhcpd_get_server_ip(void)
 {
 #ifdef CONFIG_MTK_DHCPD_USE_CONFIG_IP
+	const char *env_ip = env_get("ipaddr");
+
+	if (env_ip && env_ip[0])
+		return string_to_ip(env_ip);
+
 	return string_to_ip(CONFIG_IPADDR);
 #else
 	if (net_ip.s_addr)
@@ -129,6 +134,11 @@ static struct in_addr dhcpd_get_server_ip(void)
 static struct in_addr dhcpd_get_netmask(void)
 {
 #ifdef CONFIG_MTK_DHCPD_USE_CONFIG_IP
+	const char *env_nm = env_get("netmask");
+
+	if (env_nm && env_nm[0])
+		return string_to_ip(env_nm);
+
 	return string_to_ip(CONFIG_NETMASK);
 #else
 	if (net_netmask.s_addr)
@@ -156,6 +166,11 @@ static struct in_addr dhcpd_get_dns(void)
 
 static u32 dhcpd_get_pool_start_host(void)
 {
+	const char *val = env_get("dhcpd_pool_start");
+
+	if (val && val[0])
+		return (u32)simple_strtoul(val, NULL, 0);
+
 #ifdef CONFIG_MTK_DHCPD_USE_CONFIG_IP
 	return (u32)CONFIG_MTK_DHCPD_POOL_START_HOST;
 #else
@@ -165,6 +180,11 @@ static u32 dhcpd_get_pool_start_host(void)
 
 static u32 dhcpd_get_pool_size(void)
 {
+	const char *val = env_get("dhcpd_pool_size");
+
+	if (val && val[0])
+		return (u32)simple_strtoul(val, NULL, 0);
+
 #ifdef CONFIG_MTK_DHCPD_USE_CONFIG_IP
 	return (u32)CONFIG_MTK_DHCPD_POOL_SIZE;
 #else
@@ -861,6 +881,8 @@ U_BOOT_CMD(dhcpd, 2, 0, do_dhcpd,
 	"start - start DHCP server\n"
 	"dhcpd stop - stop DHCP server\n\n"
 	"Environment:\n"
-	"  dhcpd_verbose  - set to 1/true/yes/on to enable detailed console output\n"
-	"                   (pool info, every DHCP request/reply, lease allocation)"
+	"  dhcpd_verbose      - set to 1/true/yes/on to enable detailed console output\n"
+	"                       (pool info, every DHCP request/reply, lease allocation)\n"
+	"  dhcpd_pool_start   - first host index of the DHCP pool (decimal or 0x..)\n"
+	"  dhcpd_pool_size    - number of addresses in the DHCP pool"
 );
