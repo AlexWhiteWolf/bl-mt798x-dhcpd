@@ -82,39 +82,43 @@ FILE_style.o := style.css
 FSPATH_style.o := style.css
 
 obj-$(CONFIG_WEBUI_FAILSAFE_BACKUP) += backup_js.o
-FILE_backup_js.o := backup_js.js
+FILE_backup_js.o := .min/backup_js.js
 FSPATH_backup_js.o := backup_js.js
 
 obj-$(CONFIG_WEBUI_FAILSAFE_CONSOLE) += console_js.o
-FILE_console_js.o := console_js.js
+FILE_console_js.o := .min/console_js.js
 FSPATH_console_js.o := console_js.js
 
 obj-$(CONFIG_WEBUI_FAILSAFE_ENV) += env_js.o
-FILE_env_js.o := env_js.js
+FILE_env_js.o := .min/env_js.js
 FSPATH_env_js.o := env_js.js
 
 obj-$(CONFIG_WEBUI_FAILSAFE_FLASH) += flash_js.o
-FILE_flash_js.o := flash_js.js
+FILE_flash_js.o := .min/flash_js.js
 FSPATH_flash_js.o := flash_js.js
 
 obj-$(CONFIG_WEBUI_FAILSAFE_I18N) += i18n.o
-FILE_i18n.o := i18n.js
+FILE_i18n.o := .min/i18n.js
 FSPATH_i18n.o := i18n.js
 
 obj-y += main.o
-FILE_main.o := main.js
+FILE_main.o := .min/main.js
 FSPATH_main.o := main.js
 
 obj-$(CONFIG_WEBUI_FAILSAFE_ENV) += settings_js.o
-FILE_settings_js.o := settings_js.js
+FILE_settings_js.o := .min/settings_js.js
 FSPATH_settings_js.o := settings_js.js
 
 obj-y += theme.o
-FILE_theme.o := theme.js
+FILE_theme.o := .min/theme.js
 FSPATH_theme.o := theme.js
 
 # customized build rules
 strip_path = $(subst /,_,$(subst -,_,$(subst .,_,$(1))))
+WEBUI_FAILSAFE_JS_MINIFY_SCRIPT = $(srctree)/$(src)/../minify-js.cjs
+
+quiet_cmd_minify_js = UGLIFY  $@
+cmd_minify_js = mkdir -p $(dir $@) && node $(WEBUI_FAILSAFE_JS_MINIFY_SCRIPT) $< $@
 
 quiet_cmd_as_o_html = AS      $@
 cmd_as_o_html = $(CC) $(a_flags) -c -o $@ \
@@ -137,10 +141,15 @@ $(obj)/%.o: $(src)/%.css FORCE
 	$(call cmd,force_checksrc)
 	$(call if_changed_dep,as_o_html)
 
-$(obj)/%.o: $(src)/%.js FORCE
+$(obj)/.min/%.js: $(src)/%.js $(WEBUI_FAILSAFE_JS_MINIFY_SCRIPT) FORCE
 	$(call cmd,force_checksrc)
+	$(call if_changed,minify_js)
+
+$(obj)/%.o: $(obj)/.min/%.js FORCE
 	$(call if_changed_dep,as_o_html)
 
 $(obj)/%.o: $(src)/%.svg FORCE
 	$(call cmd,force_checksrc)
 	$(call if_changed_dep,as_o_html)
+
+clean-files += .min/*

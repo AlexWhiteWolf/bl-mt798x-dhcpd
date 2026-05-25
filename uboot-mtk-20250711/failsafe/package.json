@@ -1,0 +1,9 @@
+{
+  "name": "failsafe-webui-build-tools",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Build-time helpers for failsafe web UI assets",
+  "dependencies": {
+    "uglify-js": "^3.19.3"
+  }
+}

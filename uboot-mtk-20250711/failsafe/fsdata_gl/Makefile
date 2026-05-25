@@ -46,7 +46,7 @@ FILE_initramfs.o := initramfs.html
 FSPATH_initramfs.o := initramfs.html
 
 obj-y += main.o
-FILE_main.o := main.js
+FILE_main.o := .min/main.js
 FSPATH_main.o := main.js
 
 obj-$(CONFIG_WEBUI_FAILSAFE_ENV) += env.o
@@ -79,6 +79,10 @@ FSPATH_uboot.o := uboot.html
 
 # customized build rules
 strip_path = $(subst /,_,$(subst -,_,$(subst .,_,$(1))))
+WEBUI_FAILSAFE_JS_MINIFY_SCRIPT = $(srctree)/$(src)/../minify-js.cjs
+
+quiet_cmd_minify_js = UGLIFY  $@
+cmd_minify_js = mkdir -p $(dir $@) && node $(WEBUI_FAILSAFE_JS_MINIFY_SCRIPT) $< $@
 
 quiet_cmd_as_o_html = AS      $@
 cmd_as_o_html = $(CC) $(a_flags) -c -o $@ \
@@ -101,6 +105,11 @@ $(obj)/%.o: $(src)/%.css FORCE
 	$(call cmd,force_checksrc)
 	$(call if_changed_dep,as_o_html)
 
-$(obj)/%.o: $(src)/%.js FORCE
+$(obj)/.min/%.js: $(src)/%.js $(WEBUI_FAILSAFE_JS_MINIFY_SCRIPT) FORCE
 	$(call cmd,force_checksrc)
+	$(call if_changed,minify_js)
+
+$(obj)/%.o: $(obj)/.min/%.js FORCE
 	$(call if_changed_dep,as_o_html)
+
+clean-files += .min/*
