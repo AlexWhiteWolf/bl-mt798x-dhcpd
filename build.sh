@@ -135,6 +135,35 @@ echo "======================================================================"
 echo "Checking environment..."
 echo "======================================================================"
 
+echo "Trying npm..."
+command -v npm
+[ "$?" != "0" ] && { echo "Error: npm is not installed on this system."; exit 0; }
+
+ensure_failsafe_js_deps() {
+	failsafe_dir="$UBOOT_DIR/failsafe"
+	package_json="$failsafe_dir/package.json"
+	marker="$failsafe_dir/.npm-install-done"
+
+	if [ ! -f "$package_json" ]; then
+		echo "Skipping failsafe JS dependency setup: $package_json not found."
+		return 0
+	fi
+
+	if [ -f "$marker" ] && [ -d "$failsafe_dir/node_modules/uglify-js" ]; then
+		echo "Failsafe JS build dependencies already installed."
+		return 0
+	fi
+
+	command -v npm >/dev/null 2>&1 || { echo "Error: npm is not installed on this system."; exit 1; }
+	echo "Installing failsafe JS build dependencies..."
+	(cd "$failsafe_dir" && npm install --no-audit --no-fund) || exit 1
+	touch "$marker"
+	echo "Failsafe JS build dependencies installed."
+}
+
+echo "npm found, checking failsafe JS dependencies..."
+ensure_failsafe_js_deps
+
 echo "Trying python3..."
 command -v python3
 [ "$?" != "0" ] && { echo "Error: Python3 is not installed on this system."; exit 0; }
