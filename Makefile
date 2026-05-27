@@ -139,7 +139,7 @@ ifeq ($(origin BUILD_LOG), undefined)
   BUILD_LOG := $(call config_bool,CONFIG_BUILD_LOG,n)
 endif
 
-.PHONY: all build boards board-configs gen-board-kconfig menuconfig defconfig atf gpt clean help
+.PHONY: all build boards board-configs gen-board-kconfig menuconfig defconfig atf gpt clean distclean help
 
 build:
 	@set -euo pipefail; \
@@ -458,6 +458,19 @@ clean:
 	printf '%s\n' "env -u MAKEFLAGS -u MAKELEVEL -u MFLAGS CLEAN=1 VERSION=\"$(VERSION)\" ./build.sh"; \
 	env -u MAKEFLAGS -u MAKELEVEL -u MFLAGS CLEAN=1 VERSION="$(VERSION)" ./build.sh
 
+distclean: clean
+	@set -euo pipefail; \
+	echo "Cleaning output directories..."; \
+	rm -rf output output_gpt output_bl2; \
+	echo "Cleaning config files..."; \
+	rm -f .config .config.old boards.kconfig; \
+	echo "Cleaning generated files..."; \
+	rm -rf model_lists; \
+	echo "Cleaning u-boot generated files..."; \
+	rm -f uboot-mtk-20250711/.config; \
+	rm -f uboot-mtk-20250711/boards.kconfig; \
+	echo "Distclean complete."
+
 help:
 	@printf '%s\n' \
 		'Quick build entry points' \
@@ -472,6 +485,8 @@ help:
 		'  make gpt                 # call generate_gpt.sh' \
 		'  make boards              # list buildable BOARDs' \
 		'  make board-configs       # list buildable config names (for automation)' \
+		'  make clean               # clean build artifacts (via build.sh)' \
+		'  make distclean           # clean everything including output dirs and config files' \
 		'  make help                # show this help' \
 		'' \
 		'Board selection (via menuconfig):' \
