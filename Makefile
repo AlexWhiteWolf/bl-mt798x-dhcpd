@@ -243,6 +243,8 @@ defconfig:
 	@set -euo pipefail; \
 	if [ ! -f "$(MENUCONFIG_UBOOT_DIR)/scripts/kconfig/conf" ]; then \
 		echo "Building kconfig conf tool..."; \
+		env -u MAKEFLAGS -u MAKELEVEL -u MFLAGS \
+		KBUILD_KCONFIG=/dev/null KCONFIG_CONFIG=/dev/null \
 		$(MAKE) -C "$(MENUCONFIG_UBOOT_DIR)" scripts/kconfig/conf; \
 	fi; \
 	if [ ! -f "$(CURDIR)/boards.kconfig" ]; then \
