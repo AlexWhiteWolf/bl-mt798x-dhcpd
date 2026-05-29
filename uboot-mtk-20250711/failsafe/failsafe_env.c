@@ -126,29 +126,6 @@ static void failsafe_env_prepare(void)
 #endif
 }
 
-static void failsafe_env_free_session(enum httpd_uri_handler_status status,
-	struct httpd_response *response)
-{
-	if (status != HTTP_CB_CLOSED)
-		return;
-
-	if (response->session_data) {
-		free(response->session_data);
-		response->session_data = NULL;
-	}
-}
-
-static void failsafe_http_reply_text(struct httpd_response *response, int code,
-	const char *text)
-{
-	response->status = HTTP_RESP_STD;
-	response->data = text ? text : "";
-	response->size = strlen(response->data);
-	response->info.code = code;
-	response->info.connection_close = 1;
-	response->info.content_type = "text/plain";
-}
-
 static int failsafe_env_get_form_value(struct httpd_request *request,
 	const char *key, char **out, size_t max_len, bool allow_empty)
 {
@@ -241,7 +218,7 @@ void env_list_handler(enum httpd_uri_handler_status status,
 	size_t out_len = 0;
 
 	if (status == HTTP_CB_CLOSED) {
-		failsafe_env_free_session(status, response);
+		failsafe_free_session(status, response);
 		return;
 	}
 
@@ -427,7 +404,7 @@ void env_size_handler(enum httpd_uri_handler_status status,
 	int ret;
 
 	if (status == HTTP_CB_CLOSED) {
-		failsafe_env_free_session(status, response);
+		failsafe_free_session(status, response);
 		return;
 	}
 
