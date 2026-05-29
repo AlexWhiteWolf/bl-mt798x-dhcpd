@@ -8,6 +8,7 @@
  */
 
 #include <command.h>
+#include <console.h>
 #include <errno.h>
 #include <env.h>
 #include <malloc.h>
@@ -235,35 +236,6 @@ static void failsafe_save_mtd_layout(void)
 }
 #endif
 
-static int output_plain_file(struct httpd_response *response,
-			     const char *filename)
-{
-	const struct fs_desc *file;
-	int ret = 0;
-
-	file = fs_find_file(filename);
-
-	response->status = HTTP_RESP_STD;
-
-	if (file) {
-		response->data = file->data;
-		response->size = file->size;
-		/* embedded assets are gzip-compressed at build time */
-		response->info.content_encoding = "gzip";
-	} else {
-		response->data = "Error: file not found";
-		response->size = strlen(response->data);
-		response->info.content_encoding = NULL;
-		ret = 1;
-	}
-
-	response->info.code = 200;
-	response->info.connection_close = 1;
-	response->info.content_type = "text/html";
-
-	return ret;
-}
-
 #ifndef WEBUI_FAILSAFE_GIT_HASH
 #define WEBUI_FAILSAFE_GIT_HASH "unknown"
 #endif
@@ -309,52 +281,26 @@ static void version_handler(enum httpd_uri_handler_status status,
 	response->info.content_type = "text/plain";
 }
 
-static void sysinfo_handler(enum httpd_uri_handler_status status,
-							struct httpd_request *request,
-							struct httpd_response *response)
+/* ------------------------------------------------------------------ */
+/*  sysinfo sub-functions                                              */
+/* ------------------------------------------------------------------ */
+
+static int sysinfo_json_append_board(char *buf, int len, int left)
 {
-	char *buf;
-	int len = 0;
-	int left = 8192;
-	off_t ram_size = 0;
 	ofnode root;
 	const char *board_model = NULL;
 	const char *board_compat = NULL;
 	const char *build_variant = NULL;
+	off_t ram_size = 0;
 	char esc_board_model[256], esc_board_compat[256], esc_build_variant[256];
 
-	(void)request;
-
-	if (status == HTTP_CB_CLOSED)
-	{
-		free(response->session_data);
-		return;
-	}
-
-	if (status != HTTP_CB_NEW)
-		return;
-
-	buf = malloc(left);
-	if (!buf)
-	{
-		response->status = HTTP_RESP_STD;
-		response->data = "{}";
-		response->size = strlen(response->data);
-		response->info.code = 500;
-		response->info.connection_close = 1;
-		response->info.content_type = "application/json";
-		return;
-	}
-
 	root = ofnode_path("/");
-	if (ofnode_valid(root))
-	{
+	if (ofnode_valid(root)) {
 		board_model = ofnode_read_string(root, "model");
 		board_compat = ofnode_read_string(root, "compatible");
 	}
 
-	if (!board_model || !board_model[0])
-	{
+	if (!board_model || !board_model[0]) {
 		board_model = env_get("model");
 		if (!board_model || !board_model[0])
 			board_model = env_get("board_name");
@@ -362,7 +308,6 @@ static void sysinfo_handler(enum httpd_uri_handler_status status,
 			board_model = env_get("board");
 	}
 
-	/* RAM size from global data */
 	if (gd)
 		ram_size = (off_t)gd->ram_size;
 
@@ -374,96 +319,99 @@ static void sysinfo_handler(enum httpd_uri_handler_status status,
 	json_escape(esc_board_compat, sizeof(esc_board_compat), board_compat ? board_compat : "");
 	json_escape(esc_build_variant, sizeof(esc_build_variant), build_variant ? build_variant : "");
 
-	len += snprintf(buf + len, left - len, "{");
 	len += snprintf(buf + len, left - len,
-					"\"board\":{\"model\":\"%s\",\"compatible\":\"%s\"},",
-					esc_board_model, esc_board_compat);
+		"\"board\":{\"model\":\"%s\",\"compatible\":\"%s\"},",
+		esc_board_model, esc_board_compat);
 	len += snprintf(buf + len, left - len,
-					"\"ram\":{\"size\":%llu},",
-					(unsigned long long)ram_size);
+		"\"ram\":{\"size\":%llu},",
+		(unsigned long long)ram_size);
 	len += snprintf(buf + len, left - len,
-					"\"build_variant\":\"%s\",",
-					esc_build_variant);
+		"\"build_variant\":\"%s\",",
+		esc_build_variant);
 
-	len += snprintf(buf + len, left - len, "\"storage\":{");
+	return len;
+}
 
 #ifdef CONFIG_MEDIATEK_MULTI_MTD_LAYOUT
-	{
-		const char *cur = get_mtd_layout_label();
-		const char *custom_parts = env_get(MTD_LAYOUT_CUSTOM_ENV);
-		char esc_cur[128];
-		const char *cur_parts = NULL;
-		char esc_cur_parts[512];
-		ofnode node, layout;
-		bool first = true;
-		bool custom_seen = false;
+static int sysinfo_json_append_mtd_layout(char *buf, int len, int left)
+{
+	const char *cur = get_mtd_layout_label();
+	const char *custom_parts = env_get(MTD_LAYOUT_CUSTOM_ENV);
+	char esc_cur[128];
+	const char *cur_parts = NULL;
+	char esc_cur_parts[512];
+	ofnode node, layout;
+	bool first = true;
+	bool custom_seen = false;
 
-		json_escape(esc_cur, sizeof(esc_cur), cur ? cur : "");
-		len += snprintf(buf + len, left - len,
-				"\"mtd_layout\":{\"current\":\"%s\",",
-				esc_cur);
+	json_escape(esc_cur, sizeof(esc_cur), cur ? cur : "");
+	len += snprintf(buf + len, left - len,
+			"\"mtd_layout\":{\"current\":\"%s\",",
+			esc_cur);
 
-		node = ofnode_path("/mtd-layout");
-		if (ofnode_valid(node) && ofnode_get_child_count(node)) {
-			len += snprintf(buf + len, left - len, "\"layouts\":[");
-			ofnode_for_each_subnode(layout, node) {
-				const char *label = ofnode_read_string(layout, "label");
-				const char *parts = ofnode_read_string(layout, "mtdparts");
-				char esc_label[128];
-				char esc_parts[512];
+	node = ofnode_path("/mtd-layout");
+	if (ofnode_valid(node) && ofnode_get_child_count(node)) {
+		len += snprintf(buf + len, left - len, "\"layouts\":[");
+		ofnode_for_each_subnode(layout, node) {
+			const char *label = ofnode_read_string(layout, "label");
+			const char *parts = ofnode_read_string(layout, "mtdparts");
+			char esc_label[128];
+			char esc_parts[512];
 
-				if (!label)
-					continue;
-				if (!strcmp(label, MTD_LAYOUT_CUSTOM_LABEL)) {
-					custom_seen = true;
-					if (custom_parts && custom_parts[0])
-						parts = custom_parts;
-				}
-				json_escape(esc_label, sizeof(esc_label), label);
-				json_escape(esc_parts, sizeof(esc_parts), parts ? parts : "");
-				if (cur && !strcmp(label, cur))
-					cur_parts = parts;
-				len += snprintf(buf + len, left - len,
-					"%s{\"label\":\"%s\",\"parts\":\"%s\"}",
-					first ? "" : ",", esc_label, esc_parts);
-				first = false;
+			if (!label)
+				continue;
+			if (!strcmp(label, MTD_LAYOUT_CUSTOM_LABEL)) {
+				custom_seen = true;
+				if (custom_parts && custom_parts[0])
+					parts = custom_parts;
 			}
-			if (custom_parts && custom_parts[0] && !custom_seen) {
-				char esc_parts[512];
-
-				json_escape(esc_parts, sizeof(esc_parts), custom_parts);
-				if (cur && !strcmp(cur, MTD_LAYOUT_CUSTOM_LABEL))
-					cur_parts = custom_parts;
-				len += snprintf(buf + len, left - len,
-					"%s{\"label\":\"%s\",\"parts\":\"%s\"}",
-					first ? "" : ",", MTD_LAYOUT_CUSTOM_LABEL,
-					esc_parts);
-			}
-			len += snprintf(buf + len, left - len, "],");
-		} else {
-			if (custom_parts && custom_parts[0]) {
-				char esc_parts[512];
-
-				json_escape(esc_parts, sizeof(esc_parts), custom_parts);
-				if (cur && !strcmp(cur, MTD_LAYOUT_CUSTOM_LABEL))
-					cur_parts = custom_parts;
-				len += snprintf(buf + len, left - len,
-					"\"layouts\":[{\"label\":\"%s\",\"parts\":\"%s\"}],",
-					MTD_LAYOUT_CUSTOM_LABEL, esc_parts);
-			} else {
-				len += snprintf(buf + len, left - len, "\"layouts\":[],");
-			}
+			json_escape(esc_label, sizeof(esc_label), label);
+			json_escape(esc_parts, sizeof(esc_parts), parts ? parts : "");
+			if (cur && !strcmp(label, cur))
+				cur_parts = parts;
+			len += snprintf(buf + len, left - len,
+				"%s{\"label\":\"%s\",\"parts\":\"%s\"}",
+				first ? "" : ",", esc_label, esc_parts);
+			first = false;
 		}
+		if (custom_parts && custom_parts[0] && !custom_seen) {
+			char esc_parts[512];
 
-		json_escape(esc_cur_parts, sizeof(esc_cur_parts), cur_parts ? cur_parts : "");
-		len += snprintf(buf + len, left - len,
-				"\"current_parts\":\"%s\"},",
-				esc_cur_parts);
+			json_escape(esc_parts, sizeof(esc_parts), custom_parts);
+			if (cur && !strcmp(cur, MTD_LAYOUT_CUSTOM_LABEL))
+				cur_parts = custom_parts;
+			len += snprintf(buf + len, left - len,
+				"%s{\"label\":\"%s\",\"parts\":\"%s\"}",
+				first ? "" : ",", MTD_LAYOUT_CUSTOM_LABEL,
+				esc_parts);
+		}
+		len += snprintf(buf + len, left - len, "],");
+	} else {
+		if (custom_parts && custom_parts[0]) {
+			char esc_parts[512];
+
+			json_escape(esc_parts, sizeof(esc_parts), custom_parts);
+			if (cur && !strcmp(cur, MTD_LAYOUT_CUSTOM_LABEL))
+				cur_parts = custom_parts;
+			len += snprintf(buf + len, left - len,
+				"\"layouts\":[{\"label\":\"%s\",\"parts\":\"%s\"}],",
+				MTD_LAYOUT_CUSTOM_LABEL, esc_parts);
+		} else {
+			len += snprintf(buf + len, left - len, "\"layouts\":[],");
+		}
 	}
-#else
-	len += snprintf(buf + len, left - len, "\"mtd_layout\":null,");
+
+	json_escape(esc_cur_parts, sizeof(esc_cur_parts), cur_parts ? cur_parts : "");
+	len += snprintf(buf + len, left - len,
+			"\"current_parts\":\"%s\"},",
+			esc_cur_parts);
+
+	return len;
+}
 #endif
 
+static int sysinfo_json_append_mmc(char *buf, int len, int left)
+{
 	len += snprintf(buf + len, left - len, "\"mmc\":{");
 #ifdef CONFIG_MTK_BOOTMENU_MMC
 	{
@@ -523,18 +471,54 @@ static void sysinfo_handler(enum httpd_uri_handler_status status,
 #endif
 	len += snprintf(buf + len, left - len, "}");
 
+	return len;
+}
+
+static void sysinfo_handler(enum httpd_uri_handler_status status,
+	struct httpd_request *request,
+	struct httpd_response *response)
+{
+	char *buf;
+	int len = 0;
+	int left = 8192;
+
+	(void)request;
+
+	if (status == HTTP_CB_CLOSED) {
+		free(response->session_data);
+		return;
+	}
+
+	if (status != HTTP_CB_NEW)
+		return;
+
+	buf = malloc(left);
+	if (!buf) {
+		failsafe_http_reply_json(response, 500, "{}");
+		return;
+	}
+
+	len += snprintf(buf + len, left - len, "{");
+
+	/* board + RAM + build_variant */
+	len = sysinfo_json_append_board(buf, len, left);
+
+	/* storage section */
+	len += snprintf(buf + len, left - len, "\"storage\":{");
+
+#ifdef CONFIG_MEDIATEK_MULTI_MTD_LAYOUT
+	len = sysinfo_json_append_mtd_layout(buf, len, left);
+#else
+	len += snprintf(buf + len, left - len, "\"mtd_layout\":null,");
+#endif
+
+	/* MMC info */
+	len = sysinfo_json_append_mmc(buf, len, left);
+
 	len += snprintf(buf + len, left - len, "}");
 	len += snprintf(buf + len, left - len, "}");
 
-	response->status = HTTP_RESP_STD;
-	response->data = buf;
-	response->size = strlen(buf);
-	response->info.code = 200;
-	response->info.connection_close = 1;
-	response->info.content_type = "application/json";
-
-	/* response data must stay valid until sent */
-	response->session_data = buf;
+	failsafe_http_reply_json_alloc(response, 200, buf, buf);
 }
 
 static void reboot_handler(enum httpd_uri_handler_status status,
@@ -637,7 +621,7 @@ static void not_found_handler(enum httpd_uri_handler_status status,
 			      struct httpd_response *response)
 {
 	if (status == HTTP_CB_NEW) {
-		output_plain_file(response, "404.html");
+		failsafe_output_file(response, "404.html", "text/html");
 		response->info.code = 404;
 	}
 }
@@ -647,7 +631,7 @@ static void index_handler(enum httpd_uri_handler_status status,
 			  struct httpd_response *response)
 {
 	if (status == HTTP_CB_NEW) {
-		if (output_plain_file(response, "index.html"))
+		if (failsafe_output_file(response, "index.html", "text/html"))
 			not_found_handler(status, request, response);
 	}
 }
@@ -884,11 +868,10 @@ static void style_handler(enum httpd_uri_handler_status status,
 			  struct httpd_response *response)
 {
 	if (status == HTTP_CB_NEW) {
-		if (output_plain_file(response, "style.css")) {
+		if (failsafe_output_file(response, "style.css", "text/css")) {
 			not_found_handler(status, request, response);
 			return;
 		}
-		response->info.content_type = "text/css";
 	}
 }
 
@@ -954,13 +937,12 @@ static void js_handler(enum httpd_uri_handler_status status,
 		const char *uri = request && request->urih ? request->urih->uri : NULL;
 		const char *file = select_js_file(uri);
 
-		if (output_plain_file(response, file)) {
+		if (failsafe_output_file(response, file, "text/javascript")) {
 			/* requested JS not embedded: serve 404 page instead of
 			 * a plain-text error masquerading as gzip-encoded JS */
 			not_found_handler(status, request, response);
 			return;
 		}
-		response->info.content_type = "text/javascript";
 	}
 }
 
@@ -971,7 +953,7 @@ static void html_handler(enum httpd_uri_handler_status status,
 	if (status != HTTP_CB_NEW)
 		return;
 
-	if (output_plain_file(response, request->urih->uri + 1))
+	if (failsafe_output_file(response, request->urih->uri + 1, "text/html"))
 		not_found_handler(status, request, response);
 }
 
