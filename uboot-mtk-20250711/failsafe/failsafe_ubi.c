@@ -42,69 +42,6 @@
 /* Max MTD partition name length */
 #define UBI_MTD_NAME_MAX_LEN	64
 
-static void ubi_reply_text(struct httpd_response *response, int code,
-	const char *text)
-{
-	response->status = HTTP_RESP_STD;
-	response->data = text ? text : "";
-	response->size = strlen(response->data);
-	response->info.code = code;
-	response->info.connection_close = 1;
-	response->info.content_type = "text/plain";
-}
-
-static void ubi_reply_json(struct httpd_response *response, int code,
-	char *json, void *session_data)
-{
-	response->status = HTTP_RESP_STD;
-	response->data = json;
-	response->size = strlen(json);
-	response->info.code = code;
-	response->info.connection_close = 1;
-	response->info.content_type = "application/json";
-	response->session_data = session_data;
-}
-
-static void ubi_free_session(enum httpd_uri_handler_status status,
-	struct httpd_response *response)
-{
-	if (status != HTTP_CB_CLOSED)
-		return;
-
-	if (response->session_data) {
-		free(response->session_data);
-		response->session_data = NULL;
-	}
-}
-
-static int ubi_get_form_value(struct httpd_request *request,
-	const char *key, char **out, size_t max_len)
-{
-	struct httpd_form_value *v;
-	char *buf;
-	size_t n;
-
-	if (!request || !key || !out)
-		return -EINVAL;
-
-	v = httpd_request_find_value(request, key);
-	if (!v || !v->data || !v->size)
-		return -EINVAL;
-
-	n = v->size;
-	if (n > max_len)
-		return -E2BIG;
-
-	buf = malloc(n + 1);
-	if (!buf)
-		return -ENOMEM;
-
-	memcpy(buf, v->data, n);
-	buf[n] = '\0';
-	*out = buf;
-	return 0;
-}
-
 /**
  * ubi_info_handler - GET /ubi/info
  *
@@ -119,24 +56,23 @@ void ubi_info_handler(enum httpd_uri_handler_status status,
 	int len = 0;
 	int left = UBI_JSON_BUF_SZ;
 
-	ubi_free_session(status, response);
+	failsafe_free_session(status, response);
 
 	if (status != HTTP_CB_NEW)
 		return;
 
 	if (!request || request->method != HTTP_GET) {
-		ubi_reply_text(response, 405, "method");
+		failsafe_http_reply_text(response, 405, "method");
 		return;
 	}
 
 	buf = malloc(left);
 	if (!buf) {
-		ubi_reply_json(response, 500, "{\"error\":\"oom\"}", NULL);
+		failsafe_http_reply_json(response, 500, "{\"error\":\"oom\"}");
 		return;
 	}
 
 	/* Check if UBI is attached */
-	extern struct ubi_device *ubi_devices[];
 	struct ubi_device *ubi = ubi_devices[0];
 
 	if (!ubi) {
@@ -179,7 +115,7 @@ void ubi_info_handler(enum httpd_uri_handler_status status,
 		ubi->mean_ec);
 
 done:
-	ubi_reply_json(response, 200, buf, buf);
+	failsafe_http_reply_json_alloc(response, 200, buf, buf);
 }
 
 /**
@@ -197,23 +133,22 @@ void ubi_volumes_handler(enum httpd_uri_handler_status status,
 	int left = UBI_JSON_BUF_SZ;
 	bool first = true;
 
-	ubi_free_session(status, response);
+	failsafe_free_session(status, response);
 
 	if (status != HTTP_CB_NEW)
 		return;
 
 	if (!request || request->method != HTTP_GET) {
-		ubi_reply_text(response, 405, "method");
+		failsafe_http_reply_text(response, 405, "method");
 		return;
 	}
 
 	buf = malloc(left);
 	if (!buf) {
-		ubi_reply_json(response, 500, "{\"error\":\"oom\"}", NULL);
+		failsafe_http_reply_json(response, 500, "{\"error\":\"oom\"}");
 		return;
 	}
 
-	extern struct ubi_device *ubi_devices[];
 	struct ubi_device *ubi = ubi_devices[0];
 
 	if (!ubi) {
@@ -260,7 +195,7 @@ void ubi_volumes_handler(enum httpd_uri_handler_status status,
 	len += snprintf(buf + len, left - len, "]}");
 
 done:
-	ubi_reply_json(response, 200, buf, buf);
+	failsafe_http_reply_json_alloc(response, 200, buf, buf);
 }
 
 /**
@@ -279,33 +214,31 @@ void ubi_attach_handler(enum httpd_uri_handler_status status,
 	char *json_out;
 	int ret;
 
-	ubi_free_session(status, response);
+	failsafe_free_session(status, response);
 
 	if (status != HTTP_CB_NEW)
 		return;
 
 	if (!request || request->method != HTTP_POST) {
-		ubi_reply_text(response, 405, "method");
+		failsafe_http_reply_text(response, 405, "method");
 		return;
 	}
 
 	/* Get MTD name */
-	ret = ubi_get_form_value(request, "mtd_name", &mtd_name,
-		UBI_MTD_NAME_MAX_LEN);
+	ret = failsafe_get_form_value(request, "mtd_name", &mtd_name,
+		UBI_MTD_NAME_MAX_LEN, false, false);
 	if (ret || !mtd_name || !mtd_name[0]) {
 		json_out = strdup("{\"error\":\"missing mtd_name\"}");
-		ubi_reply_json(response, 400,
+		failsafe_http_reply_json_alloc(response, 400,
 			json_out ? json_out : "{\"error\":\"missing mtd_name\"}",
 			json_out);
 		return;
 	}
 
 	/* Detach existing UBI first */
-	extern int ubi_detach(void);
 	ubi_detach();
 
 	/* Attach to new partition */
-	extern int ubi_part(char *part_name, const char *vid_header_offset);
 	ret = ubi_part(mtd_name, NULL);
 	free(mtd_name);
 
@@ -314,14 +247,14 @@ void ubi_attach_handler(enum httpd_uri_handler_status status,
 		if (json_out)
 			snprintf(json_out, 128,
 				"{\"error\":\"attach failed: %d\"}", ret);
-		ubi_reply_json(response, 500,
+		failsafe_http_reply_json_alloc(response, 500,
 			json_out ? json_out : "{\"error\":\"attach failed\"}",
 			json_out);
 		return;
 	}
 
 	json_out = strdup("{\"ok\":true}");
-	ubi_reply_json(response, 200,
+	failsafe_http_reply_json_alloc(response, 200,
 		json_out ? json_out : "{\"ok\":true}", json_out);
 }
 
@@ -337,17 +270,16 @@ void ubi_detach_handler(enum httpd_uri_handler_status status,
 	char *json_out;
 	int ret;
 
-	ubi_free_session(status, response);
+	failsafe_free_session(status, response);
 
 	if (status != HTTP_CB_NEW)
 		return;
 
 	if (!request || request->method != HTTP_POST) {
-		ubi_reply_text(response, 405, "method");
+		failsafe_http_reply_text(response, 405, "method");
 		return;
 	}
 
-	extern int ubi_detach(void);
 	ret = ubi_detach();
 
 	if (ret) {
@@ -355,14 +287,14 @@ void ubi_detach_handler(enum httpd_uri_handler_status status,
 		if (json_out)
 			snprintf(json_out, 128,
 				"{\"error\":\"detach failed: %d\"}", ret);
-		ubi_reply_json(response, 500,
+		failsafe_http_reply_json_alloc(response, 500,
 			json_out ? json_out : "{\"error\":\"detach failed\"}",
 			json_out);
 		return;
 	}
 
 	json_out = strdup("{\"ok\":true}");
-	ubi_reply_json(response, 200,
+	failsafe_http_reply_json_alloc(response, 200,
 		json_out ? json_out : "{\"ok\":true}", json_out);
 }
 
@@ -391,46 +323,46 @@ void ubi_create_vol_handler(enum httpd_uri_handler_status status,
 	bool skipcheck = false;
 	int ret;
 
-	ubi_free_session(status, response);
+	failsafe_free_session(status, response);
 
 	if (status != HTTP_CB_NEW)
 		return;
 
 	if (!request || request->method != HTTP_POST) {
-		ubi_reply_text(response, 405, "method");
+		failsafe_http_reply_text(response, 405, "method");
 		return;
 	}
 
-	extern struct ubi_device *ubi_devices[];
 	struct ubi_device *ubi = ubi_devices[0];
 
 	if (!ubi) {
 		json_out = strdup("{\"error\":\"no ubi device attached\"}");
-		ubi_reply_json(response, 400,
+		failsafe_http_reply_json_alloc(response, 400,
 			json_out ? json_out : "{\"error\":\"no ubi device\"}",
 			json_out);
 		return;
 	}
 
 	/* Get volume name */
-	ret = ubi_get_form_value(request, "name", &name, UBI_VOL_NAME_MAX_LEN);
+	ret = failsafe_get_form_value(request, "name", &name,
+		UBI_VOL_NAME_MAX_LEN, false, false);
 	if (ret || !name || !name[0]) {
 		json_out = strdup("{\"error\":\"missing volume name\"}");
-		ubi_reply_json(response, 400,
+		failsafe_http_reply_json_alloc(response, 400,
 			json_out ? json_out : "{\"error\":\"missing name\"}",
 			json_out);
 		return;
 	}
 
 	/* Get size (optional) */
-	ret = ubi_get_form_value(request, "size", &size_str, 32);
+	ret = failsafe_get_form_value(request, "size", &size_str, 32, false, true);
 	if (ret == 0 && size_str && size_str[0]) {
 		size = simple_strtoull(size_str, NULL, 0);
 	}
 	free(size_str);
 
 	/* Get type (optional, default dynamic) */
-	ret = ubi_get_form_value(request, "type", &type_str, 16);
+	ret = failsafe_get_form_value(request, "type", &type_str, 16, false, true);
 	if (ret == 0 && type_str) {
 		if (strncmp(type_str, "s", 1) == 0)
 			dynamic = 0;
@@ -438,7 +370,7 @@ void ubi_create_vol_handler(enum httpd_uri_handler_status status,
 	free(type_str);
 
 	/* Get skipcheck (optional) */
-	ret = ubi_get_form_value(request, "skipcheck", &skipcheck_str, 4);
+	ret = failsafe_get_form_value(request, "skipcheck", &skipcheck_str, 4, false, true);
 	if (ret == 0 && skipcheck_str) {
 		skipcheck = (skipcheck_str[0] == '1');
 	}
@@ -450,8 +382,6 @@ void ubi_create_vol_handler(enum httpd_uri_handler_status status,
 	}
 
 	/* Create volume */
-	extern int ubi_create_vol(char *volume, int64_t size, int dynamic,
-		int vol_id, bool skipcheck);
 	ret = ubi_create_vol(name, size, dynamic, UBI_VOL_NUM_AUTO, skipcheck);
 	free(name);
 
@@ -460,14 +390,14 @@ void ubi_create_vol_handler(enum httpd_uri_handler_status status,
 		if (json_out)
 			snprintf(json_out, 128,
 				"{\"error\":\"create failed: %d\"}", ret);
-		ubi_reply_json(response, 500,
+		failsafe_http_reply_json_alloc(response, 500,
 			json_out ? json_out : "{\"error\":\"create failed\"}",
 			json_out);
 		return;
 	}
 
 	json_out = strdup("{\"ok\":true}");
-	ubi_reply_json(response, 200,
+	failsafe_http_reply_json_alloc(response, 200,
 		json_out ? json_out : "{\"ok\":true}", json_out);
 }
 
@@ -487,39 +417,38 @@ void ubi_remove_vol_handler(enum httpd_uri_handler_status status,
 	char *json_out;
 	int ret;
 
-	ubi_free_session(status, response);
+	failsafe_free_session(status, response);
 
 	if (status != HTTP_CB_NEW)
 		return;
 
 	if (!request || request->method != HTTP_POST) {
-		ubi_reply_text(response, 405, "method");
+		failsafe_http_reply_text(response, 405, "method");
 		return;
 	}
 
-	extern struct ubi_device *ubi_devices[];
 	struct ubi_device *ubi = ubi_devices[0];
 
 	if (!ubi) {
 		json_out = strdup("{\"error\":\"no ubi device attached\"}");
-		ubi_reply_json(response, 400,
+		failsafe_http_reply_json_alloc(response, 400,
 			json_out ? json_out : "{\"error\":\"no ubi device\"}",
 			json_out);
 		return;
 	}
 
 	/* Get volume name */
-	ret = ubi_get_form_value(request, "name", &name, UBI_VOL_NAME_MAX_LEN);
+	ret = failsafe_get_form_value(request, "name", &name,
+		UBI_VOL_NAME_MAX_LEN, false, false);
 	if (ret || !name || !name[0]) {
 		json_out = strdup("{\"error\":\"missing volume name\"}");
-		ubi_reply_json(response, 400,
+		failsafe_http_reply_json_alloc(response, 400,
 			json_out ? json_out : "{\"error\":\"missing name\"}",
 			json_out);
 		return;
 	}
 
 	/* Remove volume */
-	extern int ubi_remove_vol(char *volume);
 	ret = ubi_remove_vol(name);
 	free(name);
 
@@ -528,14 +457,14 @@ void ubi_remove_vol_handler(enum httpd_uri_handler_status status,
 		if (json_out)
 			snprintf(json_out, 128,
 				"{\"error\":\"remove failed: %d\"}", ret);
-		ubi_reply_json(response, 500,
+		failsafe_http_reply_json_alloc(response, 500,
 			json_out ? json_out : "{\"error\":\"remove failed\"}",
 			json_out);
 		return;
 	}
 
 	json_out = strdup("{\"ok\":true}");
-	ubi_reply_json(response, 200,
+	failsafe_http_reply_json_alloc(response, 200,
 		json_out ? json_out : "{\"ok\":true}", json_out);
 }
 
@@ -557,45 +486,44 @@ void ubi_rename_vol_handler(enum httpd_uri_handler_status status,
 	char *json_out;
 	int ret;
 
-	ubi_free_session(status, response);
+	failsafe_free_session(status, response);
 
 	if (status != HTTP_CB_NEW)
 		return;
 
 	if (!request || request->method != HTTP_POST) {
-		ubi_reply_text(response, 405, "method");
+		failsafe_http_reply_text(response, 405, "method");
 		return;
 	}
 
-	extern struct ubi_device *ubi_devices[];
 	struct ubi_device *ubi = ubi_devices[0];
 
 	if (!ubi) {
 		json_out = strdup("{\"error\":\"no ubi device attached\"}");
-		ubi_reply_json(response, 400,
+		failsafe_http_reply_json_alloc(response, 400,
 			json_out ? json_out : "{\"error\":\"no ubi device\"}",
 			json_out);
 		return;
 	}
 
 	/* Get old name */
-	ret = ubi_get_form_value(request, "old_name", &old_name,
-		UBI_VOL_NAME_MAX_LEN);
+	ret = failsafe_get_form_value(request, "old_name", &old_name,
+		UBI_VOL_NAME_MAX_LEN, false, false);
 	if (ret || !old_name || !old_name[0]) {
 		json_out = strdup("{\"error\":\"missing old_name\"}");
-		ubi_reply_json(response, 400,
+		failsafe_http_reply_json_alloc(response, 400,
 			json_out ? json_out : "{\"error\":\"missing old_name\"}",
 			json_out);
 		return;
 	}
 
 	/* Get new name */
-	ret = ubi_get_form_value(request, "new_name", &new_name,
-		UBI_VOL_NAME_MAX_LEN);
+	ret = failsafe_get_form_value(request, "new_name", &new_name,
+		UBI_VOL_NAME_MAX_LEN, false, false);
 	if (ret || !new_name || !new_name[0]) {
 		free(old_name);
 		json_out = strdup("{\"error\":\"missing new_name\"}");
-		ubi_reply_json(response, 400,
+		failsafe_http_reply_json_alloc(response, 400,
 			json_out ? json_out : "{\"error\":\"missing new_name\"}",
 			json_out);
 		return;
@@ -603,13 +531,12 @@ void ubi_rename_vol_handler(enum httpd_uri_handler_status status,
 
 	/* Find volume */
 	struct ubi_volume *vol;
-	extern struct ubi_volume *ubi_find_volume(char *volume);
 	vol = ubi_find_volume(old_name);
 	if (!vol) {
 		free(old_name);
 		free(new_name);
 		json_out = strdup("{\"error\":\"volume not found\"}");
-		ubi_reply_json(response, 404,
+		failsafe_http_reply_json_alloc(response, 404,
 			json_out ? json_out : "{\"error\":\"not found\"}",
 			json_out);
 		return;
@@ -639,14 +566,14 @@ void ubi_rename_vol_handler(enum httpd_uri_handler_status status,
 		if (json_out)
 			snprintf(json_out, 128,
 				"{\"error\":\"rename failed: %d\"}", ret);
-		ubi_reply_json(response, 500,
+		failsafe_http_reply_json_alloc(response, 500,
 			json_out ? json_out : "{\"error\":\"rename failed\"}",
 			json_out);
 		return;
 	}
 
 	json_out = strdup("{\"ok\":true}");
-	ubi_reply_json(response, 200,
+	failsafe_http_reply_json_alloc(response, 200,
 		json_out ? json_out : "{\"ok\":true}", json_out);
 }
 
@@ -666,19 +593,19 @@ void ubi_mtd_list_handler(enum httpd_uri_handler_status status,
 	bool first = true;
 	struct mtd_info *mtd;
 
-	ubi_free_session(status, response);
+	failsafe_free_session(status, response);
 
 	if (status != HTTP_CB_NEW)
 		return;
 
 	if (!request || request->method != HTTP_GET) {
-		ubi_reply_text(response, 405, "method");
+		failsafe_http_reply_text(response, 405, "method");
 		return;
 	}
 
 	buf = malloc(left);
 	if (!buf) {
-		ubi_reply_json(response, 500, "{\"error\":\"oom\"}", NULL);
+		failsafe_http_reply_json(response, 500, "{\"error\":\"oom\"}");
 		return;
 	}
 
@@ -703,7 +630,7 @@ void ubi_mtd_list_handler(enum httpd_uri_handler_status status,
 
 	len += snprintf(buf + len, left - len, "]}");
 
-	ubi_reply_json(response, 200, buf, buf);
+	failsafe_http_reply_json_alloc(response, 200, buf, buf);
 }
 
 /**
@@ -733,7 +660,7 @@ void ubi_backup_handler(enum httpd_uri_handler_status status,
 	char filename[128];
 	int ret;
 
-	ubi_free_session(status, response);
+	failsafe_free_session(status, response);
 
 	if (status == HTTP_CB_RESPONDING) {
 		u64 remain;
@@ -780,25 +707,25 @@ void ubi_backup_handler(enum httpd_uri_handler_status status,
 		return;
 
 	if (!request || request->method != HTTP_POST) {
-		ubi_reply_text(response, 405, "method");
+		failsafe_http_reply_text(response, 405, "method");
 		return;
 	}
 
 	/* Get volume name */
 	name_val = httpd_request_find_value(request, "name");
 	if (!name_val || !name_val->data || !name_val->size) {
-		ubi_reply_text(response, 400, "missing name");
+		failsafe_http_reply_text(response, 400, "missing name");
 		return;
 	}
 
 	if (name_val->size > UBI_VOL_NAME_MAX_LEN) {
-		ubi_reply_text(response, 400, "name too long");
+		failsafe_http_reply_text(response, 400, "name too long");
 		return;
 	}
 
 	vol_name = malloc(name_val->size + 1);
 	if (!vol_name) {
-		ubi_reply_text(response, 500, "oom");
+		failsafe_http_reply_text(response, 500, "oom");
 		return;
 	}
 
@@ -806,12 +733,11 @@ void ubi_backup_handler(enum httpd_uri_handler_status status,
 	vol_name[name_val->size] = '\0';
 
 	/* Check if UBI is attached */
-	extern struct ubi_device *ubi_devices[];
 	struct ubi_device *ubi = ubi_devices[0];
 
 	if (!ubi) {
 		free(vol_name);
-		ubi_reply_text(response, 400, "no ubi device");
+		failsafe_http_reply_text(response, 400, "no ubi device");
 		return;
 	}
 
@@ -819,7 +745,7 @@ void ubi_backup_handler(enum httpd_uri_handler_status status,
 	struct ubi_volume *vol = ubi_find_volume(vol_name);
 	if (!vol) {
 		free(vol_name);
-		ubi_reply_text(response, 404, "volume not found");
+		failsafe_http_reply_text(response, 404, "volume not found");
 		return;
 	}
 
@@ -827,7 +753,7 @@ void ubi_backup_handler(enum httpd_uri_handler_status status,
 	st = calloc(1, sizeof(*st));
 	if (!st) {
 		free(vol_name);
-		ubi_reply_text(response, 500, "oom");
+		failsafe_http_reply_text(response, 500, "oom");
 		return;
 	}
 
@@ -836,7 +762,7 @@ void ubi_backup_handler(enum httpd_uri_handler_status status,
 	if (!st->buf) {
 		free(st);
 		free(vol_name);
-		ubi_reply_text(response, 500, "oom");
+		failsafe_http_reply_text(response, 500, "oom");
 		return;
 	}
 
