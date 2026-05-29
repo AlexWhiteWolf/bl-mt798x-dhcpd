@@ -451,7 +451,16 @@ static void telnetd_execute(struct mtk_tcp_cb_data *cbd,
 	else
 		printf("%s", prompt);
 
-	/* Read captured console output and always send response */
+	/*
+	 * Read captured console output and always send response.
+	 *
+	 * Prepend "\r\n" so the output starts on a new line after the
+	 * echoed command.  Without this, the first line of output would
+	 * be appended to the command line, e.g.:
+	 *   "MT7981> ubi list0: kernel"   (wrong)
+	 * instead of:
+	 *   "MT7981> ubi list\r\n0: kernel" (correct)
+	 */
 	avail = membuf_avail(&gd->console_out);
 	if (avail > TELNETD_OUTBUF_SIZE)
 		avail = TELNETD_OUTBUF_SIZE;
@@ -460,15 +469,20 @@ static void telnetd_execute(struct mtk_tcp_cb_data *cbd,
 		size_t norm_len = 0;
 		int got;
 
-		raw_out = malloc(avail);
+		raw_out = malloc(avail + 2);
 		if (raw_out) {
-			got = membuf_get(&gd->console_out, raw_out, avail);
-			outbuf = telnetd_normalize_output(raw_out, got,
+			/* Prepend \r\n for the line break after user input */
+			raw_out[0] = '\r';
+			raw_out[1] = '\n';
+			got = membuf_get(&gd->console_out, raw_out + 2, avail);
+			outbuf = telnetd_normalize_output(raw_out, got + 2,
 							  &norm_len);
 			if (outbuf) {
+				free(raw_out);
+				raw_out = NULL;
 				telnetd_send_or_queue(cbd, pdata, outbuf, norm_len);
 			} else {
-				telnetd_send_or_queue(cbd, pdata, raw_out, got);
+				telnetd_send_or_queue(cbd, pdata, raw_out, got + 2);
 				raw_out = NULL;
 			}
 		}
